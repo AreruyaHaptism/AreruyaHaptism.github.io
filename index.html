@@ -736,27 +736,27 @@
     <div id="mech-watermark">
         <!-- 0: Kyrios MS -->
         <div class="wm-slide" id="wm-0">
-            <img src="https://www.genspark.ai/api/files/s/7iCMT1wa?cache_control=3600" alt="Kyrios MS Form">
+            <img src="https://www.genspark.ai/api/files/s/czq9iNGG?cache_control=3600" alt="Kyrios MS Form">
         </div>
         <!-- 1: Kyrios MA -->
         <div class="wm-slide" id="wm-1">
-            <img src="https://www.genspark.ai/api/files/s/U24HLV3h?cache_control=3600" alt="Kyrios MA Form">
+            <img src="https://www.genspark.ai/api/files/s/G9arexlA?cache_control=3600" alt="Kyrios MA Form">
         </div>
         <!-- 2: Arios MS -->
         <div class="wm-slide" id="wm-2">
-            <img src="https://www.genspark.ai/api/files/s/Feae2c24?cache_control=3600" alt="Arios MS Form">
+            <img src="https://www.genspark.ai/api/files/s/Jzv7Bajt?cache_control=3600" alt="Arios MS Form">
         </div>
         <!-- 3: Arios MA -->
         <div class="wm-slide" id="wm-3">
-            <img src="https://www.genspark.ai/api/files/s/kNB64mKW?cache_control=3600" alt="Arios MA Form">
+            <img src="https://www.genspark.ai/api/files/s/Di1Qmgbp?cache_control=3600" alt="Arios MA Form">
         </div>
         <!-- 4: Harute MS -->
         <div class="wm-slide active" id="wm-4">
-            <img src="https://www.genspark.ai/api/files/s/0u3JWvVF?cache_control=3600" alt="Harute MS Form">
+            <img src="https://www.genspark.ai/api/files/s/UWVm5in8?cache_control=3600" alt="Harute MS Form">
         </div>
         <!-- 5: Harute MA -->
         <div class="wm-slide" id="wm-5">
-            <img src="https://www.genspark.ai/api/files/s/A6qZBSYm?cache_control=3600" alt="Harute MA Form">
+            <img src="https://www.genspark.ai/api/files/s/8yRGwAa3?cache_control=3600" alt="Harute MA Form">
         </div>
     </div>
 
@@ -856,30 +856,13 @@
             <span class="gn-text">GUNDAM HARUTE</span>
             <span class="model-num">// CELESTIAL BEING</span>
         </div>
-        <!-- Celestial Being Logo (右上角) -->
+        <!-- Celestial Being Logo (右上角) - 官方圖片 -->
         <div class="cb-logo-wrap">
             <div class="cb-logo-text">CELESTIAL<br>BEING</div>
-            <!-- SVG: Celestial Being emblem (stylised eye / spear / halo) -->
-            <svg class="cb-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <!-- Outer ring -->
-                <circle cx="50" cy="50" r="46" fill="none" stroke="#D4A017" stroke-width="2" opacity="0.9"/>
-                <!-- Inner ring -->
-                <circle cx="50" cy="50" r="36" fill="none" stroke="#D4A017" stroke-width="1" opacity="0.5"/>
-                <!-- Vertical spear / diamond axis -->
-                <polygon points="50,4 55,50 50,96 45,50" fill="#D4A017" opacity="0.85"/>
-                <!-- Horizontal wings -->
-                <polygon points="4,50 50,44 96,50 50,56" fill="#D4A017" opacity="0.6"/>
-                <!-- Center circle -->
-                <circle cx="50" cy="50" r="8" fill="#D4A017" opacity="0.95"/>
-                <circle cx="50" cy="50" r="5" fill="#0D0F14"/>
-                <!-- GN glow dot -->
-                <circle cx="50" cy="50" r="2.5" fill="#00D4CC" opacity="0.9"/>
-                <!-- Corner ticks (clock positions) -->
-                <line x1="50" y1="4"  x2="50" y2="12"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
-                <line x1="50" y1="88" x2="50" y2="96"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
-                <line x1="4"  y1="50" x2="12" y2="50"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
-                <line x1="88" y1="50" x2="96" y2="50"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
-            </svg>
+            <img src="https://www.genspark.ai/api/files/s/PUOZL3eH"
+                 alt="Celestial Being"
+                 class="cb-logo-svg"
+                 style="filter: invert(0.85) sepia(1) saturate(2) hue-rotate(5deg) brightness(1.1) drop-shadow(0 0 6px rgba(212,160,23,0.7));">
         </div>
     </nav>
 
@@ -1132,7 +1115,7 @@
     let autoTimer = null;
 
     function activateMech(idx) {
-        if (idx === currentMech) return;
+        // Always update (no early return) so info panel stays in sync
         currentMech = idx;
 
         // Watermark slides
@@ -1153,28 +1136,29 @@
         document.documentElement.style.setProperty('--mech-secondary', m.secondary);
     }
 
-    // ── Scroll-driven switching (only on home panel) ──
+    // ── Scroll-driven switching (home panel only) ──
     function onScroll() {
         const panel = document.getElementById('panel-home');
-        if (!panel || panel.style.display === 'none' || !panel.classList.contains('active')) return;
+        if (!panel || !panel.classList.contains('active')) return;
 
         const scrollY = window.scrollY;
+        // The home panel has a 200vh spacer; map the scrollable range to 6 mechs
         const docH = document.documentElement.scrollHeight - window.innerHeight;
         if (docH <= 0) return;
 
-        // Map scroll 0→docH to mech index 0→5
-        const idx = Math.min(5, Math.floor((scrollY / docH) * 6));
+        const ratio = Math.max(0, Math.min(1, scrollY / docH));
+        const idx = Math.min(5, Math.floor(ratio * 6));
         activateMech(idx);
     }
 
     window.addEventListener('scroll', onScroll, { passive: true });
 
-    // ── Auto-cycle when user is NOT on home panel (every 4s) ──
+    // ── Auto-cycle (other panels, every 4 s) ──
     function startAutoCycle() {
         stopAutoCycle();
         autoTimer = setInterval(() => {
             const panel = document.getElementById('panel-home');
-            if (panel && panel.classList.contains('active')) return; // skip if on home
+            if (panel && panel.classList.contains('active')) return;
             activateMech((currentMech + 1) % 6);
         }, 4000);
     }
@@ -1191,8 +1175,10 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('panel-' + name).classList.add('active');
         btn.classList.add('active');
-        // Reset scroll to top
-        window.scrollTo(0, 0);
+        // Force scroll to very top immediately (no smooth, no delay)
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); } catch(e) { window.scrollTo(0, 0); }
     }
     function switchTabByName(name) {
         const btn = [...document.querySelectorAll('.tab-btn')]
