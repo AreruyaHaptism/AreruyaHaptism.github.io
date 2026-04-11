@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的工具站</title>
+    <title>GN-011 ガンダムハルート | 工具站</title>
+    <!-- Google Fonts: Orbitron for sci-fi feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -11,11 +14,31 @@
             box-sizing: border-box;
         }
 
+        /* ══════════════════════════════════════════
+           ガンダムハルート (GN-011) カラーテーマ
+           Primary:  #E8650A  (Harute Orange)
+           Accent:   #00D4CC  (GN Particle Teal)
+           Dark:     #0D0F14  (Inner Frame Black)
+           Mid:      #1C2130  (Gunmetal)
+           Light:    #F0EDE8  (White Armor)
+           Red:      #C0392B  (Cockpit / Core Red)
+           Gold:     #D4A017  (V-Fin Gold)
+        ═══════════════════════════════════════════ */
         :root {
-            --primary: #667eea;
-            --primary-dark: #5568d3;
-            --secondary: #764ba2;
-            --bg: #f0f2f5;
+            --primary:       #E8650A;
+            --primary-dark:  #B84D08;
+            --primary-glow:  rgba(232, 101, 10, 0.6);
+            --gn-teal:       #00D4CC;
+            --gn-teal-dim:   rgba(0, 212, 204, 0.25);
+            --gn-teal-glow:  rgba(0, 212, 204, 0.55);
+            --armor-white:   #F0EDE8;
+            --frame-black:   #0D0F14;
+            --gunmetal:      #1C2130;
+            --gunmetal-mid:  #2A3245;
+            --gunmetal-light:#3D4F6A;
+            --cockpit-red:   #C0392B;
+            --vfin-gold:     #D4A017;
+            --bg:            #0A0C10;
             --nav-height: 60px;
             --tab-height: 52px;
         }
@@ -24,51 +47,90 @@
             font-family: 'Microsoft YaHei', Arial, sans-serif;
             background: var(--bg);
             min-height: 100vh;
+            /* Harute dark cockpit background */
+            background-image:
+                radial-gradient(ellipse at 15% 50%, rgba(232,101,10,0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 85% 30%, rgba(0,212,204,0.07) 0%, transparent 55%),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 39px,
+                    rgba(0,212,204,0.03) 40px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 39px,
+                    rgba(0,212,204,0.03) 40px
+                );
         }
 
-        /* ─── 頂部導航欄 ─── */
+        /* ─── 頂部導航欄（ハルート装甲スタイル）─── */
         .navbar {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             height: var(--nav-height);
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(135deg, var(--frame-black) 0%, var(--gunmetal) 50%, var(--frame-black) 100%);
             display: flex;
             align-items: center;
             padding: 0 24px;
             z-index: 1000;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+            box-shadow: 0 2px 0 var(--primary), 0 4px 20px rgba(0,0,0,0.7);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* 左側オレンジの装甲ライン */
+        .navbar::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, var(--gn-teal), var(--primary));
         }
 
         .navbar-logo {
-            font-size: 22px;
-            font-weight: bold;
-            color: white;
-            letter-spacing: 1px;
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 3px;
             user-select: none;
+            text-shadow: 0 0 12px var(--primary-glow);
         }
 
-        .navbar-logo span {
-            opacity: 0.75;
-            font-size: 15px;
-            font-weight: normal;
-            margin-left: 10px;
+        .navbar-logo .gn-text {
+            color: var(--gn-teal);
+            font-size: 12px;
+            font-weight: 400;
+            margin-left: 12px;
+            letter-spacing: 2px;
+            opacity: 0.85;
+            text-shadow: 0 0 8px var(--gn-teal-glow);
         }
 
-        /* ─── 分頁標籤列 ─── */
+        .navbar-logo .model-num {
+            color: var(--armor-white);
+            font-size: 11px;
+            opacity: 0.5;
+            margin-left: 8px;
+            letter-spacing: 1px;
+        }
+
+        /* ─── 分頁標籤列（GNシステムコンソール風）─── */
         .tab-bar {
             position: fixed;
             top: var(--nav-height);
             left: 0;
             right: 0;
             height: var(--tab-height);
-            background: white;
-            border-bottom: 1px solid #dde1f0;
+            background: linear-gradient(180deg, var(--gunmetal) 0%, var(--frame-black) 100%);
+            border-bottom: 1px solid rgba(232,101,10,0.4);
             display: flex;
             align-items: stretch;
             z-index: 999;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
@@ -80,49 +142,70 @@
             padding: 0 28px;
             border: none;
             background: none;
-            font-size: 15px;
-            color: #666;
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            font-size: 12px;
+            color: rgba(240,237,232,0.45);
             cursor: pointer;
             position: relative;
-            transition: color 0.2s;
+            transition: color 0.25s, background 0.25s;
             white-space: nowrap;
             display: flex;
             align-items: center;
             gap: 8px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
         }
 
         .tab-btn::after {
             content: '';
             position: absolute;
             bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--primary);
-            border-radius: 3px 3px 0 0;
+            left: 12px;
+            right: 12px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--gn-teal), var(--primary));
+            border-radius: 2px 2px 0 0;
             transform: scaleX(0);
-            transition: transform 0.2s;
+            transition: transform 0.25s;
+            box-shadow: 0 0 8px var(--gn-teal-glow);
         }
 
-        .tab-btn:hover { color: var(--primary); }
+        .tab-btn:hover {
+            color: var(--armor-white);
+            background: rgba(232,101,10,0.08);
+        }
 
         .tab-btn.active {
             color: var(--primary);
-            font-weight: bold;
+            font-weight: 700;
+            background: rgba(232,101,10,0.12);
+            text-shadow: 0 0 10px var(--primary-glow);
         }
 
-        .tab-btn.active::after {
-            transform: scaleX(1);
-        }
+        .tab-btn.active::after { transform: scaleX(1); }
 
-        .tab-icon {
-            font-size: 18px;
-        }
+        .tab-icon { font-size: 16px; }
 
         /* ─── 主內容區 ─── */
         .main-content {
             margin-top: calc(var(--nav-height) + var(--tab-height));
             min-height: calc(100vh - var(--nav-height) - var(--tab-height));
+        }
+
+        /* ─── HUD スキャンライン エフェクト ─── */
+        .main-content::before {
+            content: '';
+            position: fixed;
+            top: calc(var(--nav-height) + var(--tab-height));
+            left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 3px,
+                rgba(0,212,204,0.012) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
         }
 
         /* ─── 分頁面板 ─── */
@@ -136,97 +219,222 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
+            from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* ─── 首頁面板 ─── */
+        /* GN粒子パルスアニメーション */
+        @keyframes gnPulse {
+            0%, 100% { box-shadow: 0 0 6px var(--gn-teal-glow), 0 0 20px rgba(0,212,204,0.15); }
+            50%       { box-shadow: 0 0 14px var(--gn-teal-glow), 0 0 40px rgba(0,212,204,0.3); }
+        }
+        @keyframes orangePulse {
+            0%, 100% { box-shadow: 0 0 6px var(--primary-glow), 0 0 20px rgba(232,101,10,0.2); }
+            50%       { box-shadow: 0 0 16px var(--primary-glow), 0 0 50px rgba(232,101,10,0.4); }
+        }
+        @keyframes scanline {
+            0%   { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        @keyframes borderGlow {
+            0%, 100% { border-color: rgba(232,101,10,0.4); }
+            50%       { border-color: rgba(232,101,10,0.9); }
+        }
+
+        /* ─── 首頁面板（Celestial Being ハンガー風）─── */
         #panel-home {
             padding: 40px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            position: relative;
+            z-index: 2;
         }
 
         .home-hero {
             text-align: center;
             padding: 50px 20px 40px;
+            position: relative;
+        }
+
+        /* GNドライヴ輝きサークル */
+        .home-hero::before {
+            content: '';
+            position: absolute;
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            width: 300px; height: 300px;
+            background: radial-gradient(circle,
+                rgba(0,212,204,0.08) 0%,
+                rgba(232,101,10,0.05) 40%,
+                transparent 70%
+            );
+            border-radius: 50%;
+            pointer-events: none;
         }
 
         .home-hero h1 {
-            font-size: 36px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, #FF9240 50%, var(--gn-teal) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .home-hero .subtitle-jp {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            color: var(--gn-teal);
+            letter-spacing: 5px;
+            opacity: 0.75;
+            text-shadow: 0 0 10px var(--gn-teal-glow);
+            margin-bottom: 4px;
         }
 
         .home-hero p {
-            color: #666;
-            font-size: 16px;
+            color: rgba(240,237,232,0.45);
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        /* ハルートスペックバー */
+        .harute-spec-bar {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 28px 0 0;
+            padding: 16px 24px;
+            border: 1px solid rgba(232,101,10,0.3);
+            border-radius: 4px;
+            background: rgba(28,33,48,0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .spec-item {
+            text-align: center;
+        }
+
+        .spec-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            color: var(--gn-teal);
+            letter-spacing: 2px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+
+        .spec-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            color: var(--primary);
+            font-weight: 700;
+            margin-top: 2px;
+            text-shadow: 0 0 8px var(--primary-glow);
         }
 
         .tools-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
             gap: 20px;
             width: 100%;
             max-width: 900px;
-            margin-top: 10px;
+            margin-top: 32px;
         }
 
+        /* ツールカード（装甲パネル風）*/
         .tool-card {
-            background: white;
-            border-radius: 14px;
+            background: linear-gradient(135deg, var(--gunmetal) 0%, var(--gunmetal-mid) 100%);
+            border-radius: 4px;
             padding: 28px 22px;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+            border: 1px solid rgba(232,101,10,0.3);
             text-align: center;
-            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+            clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+        }
+
+        /* 装甲コーナーアクセント */
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 40px; height: 40px;
+            background: linear-gradient(225deg, rgba(232,101,10,0.35) 0%, transparent 60%);
+        }
+
+        .tool-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 40px; height: 40px;
+            background: linear-gradient(45deg, rgba(0,212,204,0.2) 0%, transparent 60%);
         }
 
         .tool-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 28px rgba(102,126,234,0.2);
+            transform: translateY(-5px);
             border-color: var(--primary);
+            box-shadow:
+                0 0 0 1px rgba(232,101,10,0.5),
+                0 8px 32px rgba(232,101,10,0.25),
+                0 0 40px rgba(0,212,204,0.08);
         }
 
         .tool-card-icon {
-            font-size: 44px;
+            font-size: 42px;
             margin-bottom: 14px;
+            display: block;
+            filter: drop-shadow(0 0 8px rgba(232,101,10,0.5));
         }
 
         .tool-card-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 8px;
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 10px;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 8px var(--primary-glow);
         }
 
         .tool-card-desc {
-            font-size: 13px;
-            color: #888;
-            line-height: 1.6;
+            font-size: 12px;
+            color: rgba(240,237,232,0.5);
+            line-height: 1.7;
         }
 
         .tool-card-tag {
             display: inline-block;
-            margin-top: 12px;
-            padding: 3px 12px;
-            background: #eef0ff;
-            color: var(--primary);
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
+            margin-top: 14px;
+            padding: 3px 14px;
+            background: rgba(0,212,204,0.15);
+            color: var(--gn-teal);
+            border: 1px solid rgba(0,212,204,0.4);
+            border-radius: 2px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-shadow: 0 0 6px var(--gn-teal-glow);
         }
 
-        /* ─── 六合彩工具面板（從 marksixmatch 移入）─── */
+        /* ─── 六合彩工具面板（ハルートコックピット風）─── */
         #panel-marksix {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background:
+                radial-gradient(ellipse at 50% 0%, rgba(232,101,10,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 0% 100%, rgba(0,212,204,0.08) 0%, transparent 50%),
+                linear-gradient(180deg, #0D0F14 0%, #111520 100%);
             min-height: calc(100vh - var(--nav-height) - var(--tab-height));
             padding: 20px;
+            position: relative;
+            z-index: 2;
         }
 
         /* ── 以下為原 marksixmatch.html 全部樣式 ── */
@@ -236,34 +444,53 @@
         }
 
         #panel-marksix .card {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(135deg, var(--gunmetal) 0%, var(--gunmetal-mid) 100%);
+            border: 1px solid rgba(232,101,10,0.35);
+            border-radius: 4px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(240,237,232,0.05);
             padding: 30px;
             margin-bottom: 20px;
+            clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+            position: relative;
+        }
+        #panel-marksix .card::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 50px; height: 50px;
+            background: linear-gradient(225deg, rgba(232,101,10,0.3) 0%, transparent 60%);
         }
 
         #panel-marksix h1 {
-            color: #333;
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            color: var(--primary);
             text-align: center;
             margin-bottom: 10px;
-            font-size: 28px;
+            font-size: 22px;
+            letter-spacing: 3px;
+            text-shadow: 0 0 16px var(--primary-glow);
         }
 
         #panel-marksix .subtitle {
             text-align: center;
-            color: #666;
+            color: rgba(0,212,204,0.7);
             margin-bottom: 30px;
-            font-size: 14px;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 8px var(--gn-teal-glow);
         }
 
         #panel-marksix .section-title {
-            font-weight: bold;
-            color: #333;
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            font-weight: 700;
+            color: var(--primary);
             margin-bottom: 15px;
-            font-size: 18px;
-            border-bottom: 2px solid #667eea;
+            font-size: 13px;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(232,101,10,0.5);
             padding-bottom: 10px;
+            text-shadow: 0 0 8px var(--primary-glow);
+            text-transform: uppercase;
         }
 
         #panel-marksix .section {
@@ -277,18 +504,21 @@
         #panel-marksix label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
+            color: rgba(240,237,232,0.75);
+            font-size: 13px;
+            letter-spacing: 0.5px;
         }
 
         #panel-marksix input[type="number"],
         #panel-marksix textarea {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            border: 1px solid rgba(232,101,10,0.35);
+            border-radius: 3px;
             font-size: 14px;
             font-family: 'Courier New', monospace;
+            background: rgba(13,15,20,0.8);
+            color: var(--armor-white);
         }
 
         #panel-marksix textarea {
@@ -299,8 +529,8 @@
         #panel-marksix input[type="number"]:focus,
         #panel-marksix textarea:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+            border-color: var(--gn-teal);
+            box-shadow: 0 0 0 2px rgba(0,212,204,0.2), 0 0 12px rgba(0,212,204,0.15);
         }
 
         #panel-marksix .number-inputs {
@@ -316,9 +546,11 @@
         }
 
         #panel-marksix .number-input-wrapper label {
-            font-size: 12px;
+            font-size: 10px;
             margin-bottom: 5px;
-            color: #666;
+            color: rgba(0,212,204,0.65);
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         #panel-marksix .number-input-wrapper input {
@@ -328,21 +560,25 @@
         }
 
         #panel-marksix button {
-            padding: 12px 20px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
+            padding: 11px 20px;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            color: var(--armor-white);
+            border: 1px solid rgba(232,101,10,0.6);
+            border-radius: 3px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.2s;
             margin-right: 10px;
             margin-bottom: 10px;
+            letter-spacing: 1px;
+            clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
         }
-
-        #panel-marksix button:hover { background: #5568d3; }
-        #panel-marksix button:disabled { background: #ccc; cursor: not-allowed; }
+        #panel-marksix button:hover {
+            background: linear-gradient(135deg, var(--primary) 0%, #FF8832 100%);
+            box-shadow: 0 0 16px var(--primary-glow);
+        }
+        #panel-marksix button:disabled { background: var(--gunmetal); color: #555; cursor: not-allowed; border-color: #333; }
 
         #panel-marksix .drawing-numbers {
             display: flex;
@@ -355,39 +591,50 @@
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: #667eea;
-            color: white;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: var(--armor-white);
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: bold;
             font-size: 18px;
+            font-family: 'Orbitron', monospace;
+            box-shadow: 0 0 12px var(--primary-glow), inset 0 1px 0 rgba(255,255,255,0.2);
+            border: 1px solid rgba(232,101,10,0.6);
         }
 
         #panel-marksix .number-ball.special {
-            background: #ff6b6b;
-            border: 3px solid #cc5555;
+            background: linear-gradient(135deg, var(--cockpit-red), #e74c3c);
+            border: 2px solid rgba(192,57,43,0.8);
+            box-shadow: 0 0 14px rgba(192,57,43,0.6), inset 0 1px 0 rgba(255,255,255,0.2);
         }
 
         #panel-marksix .info-text {
-            font-size: 12px;
-            color: #888;
+            font-size: 11px;
+            color: rgba(0,212,204,0.5);
             margin-top: 8px;
+            letter-spacing: 0.5px;
         }
 
         #panel-marksix .input-guide-box {
-            background: #e8f5e9;
-            border-left: 4px solid #28a745;
+            background: rgba(0,212,204,0.07);
+            border-left: 3px solid var(--gn-teal);
             padding: 15px;
-            border-radius: 5px;
+            border-radius: 3px;
             margin-bottom: 20px;
             font-size: 13px;
-            color: #2e7d32;
+            color: rgba(240,237,232,0.7);
+            box-shadow: inset 0 0 20px rgba(0,212,204,0.04);
         }
 
         #panel-marksix .input-guide-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
             font-weight: bold;
-            margin-bottom: 8px;
+            color: var(--gn-teal);
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px var(--gn-teal-glow);
         }
 
         #panel-marksix .input-guide-item {
@@ -396,19 +643,21 @@
         }
 
         #panel-marksix .code {
-            background: #fff;
-            padding: 2px 6px;
-            border-radius: 3px;
+            background: rgba(13,15,20,0.8);
+            padding: 2px 7px;
+            border-radius: 2px;
             font-family: 'Courier New', monospace;
-            color: #d32f2f;
+            color: var(--primary);
+            border: 1px solid rgba(232,101,10,0.3);
         }
 
         #panel-marksix .tickets-container { margin-bottom: 20px; }
 
         #panel-marksix .ticket-item {
-            background: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            background: rgba(13,15,20,0.7);
+            border: 1px solid rgba(232,101,10,0.25);
+            border-left: 3px solid var(--primary);
+            border-radius: 3px;
             padding: 15px;
             margin-bottom: 10px;
             display: flex;
@@ -417,11 +666,14 @@
         }
 
         #panel-marksix .ticket-item-number {
+            font-family: 'Orbitron', monospace;
             font-weight: bold;
-            color: #667eea;
+            color: var(--gn-teal);
             min-width: 30px;
             text-align: center;
             margin-top: 5px;
+            font-size: 12px;
+            text-shadow: 0 0 8px var(--gn-teal-glow);
         }
 
         #panel-marksix .ticket-item-content { flex: 1; }
@@ -429,40 +681,42 @@
         #panel-marksix .ticket-input {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            border: 1px solid rgba(232,101,10,0.35);
+            border-radius: 2px;
             font-size: 14px;
             font-family: 'Courier New', monospace;
             margin-bottom: 8px;
+            background: rgba(13,15,20,0.9);
+            color: var(--armor-white);
         }
 
         #panel-marksix .ticket-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+            border-color: var(--gn-teal);
+            box-shadow: 0 0 0 2px rgba(0,212,204,0.2);
         }
 
         #panel-marksix .ticket-summary {
-            background: white;
+            background: rgba(13,15,20,0.6);
             padding: 10px;
-            border-radius: 5px;
-            border-left: 4px solid #667eea;
+            border-radius: 2px;
+            border-left: 3px solid rgba(232,101,10,0.4);
             font-size: 12px;
-            color: #666;
+            color: rgba(240,237,232,0.55);
             line-height: 1.6;
             margin-bottom: 8px;
         }
 
         #panel-marksix .ticket-summary.valid {
-            border-left-color: #28a745;
-            background: #f1f8f5;
-            color: #2e7d32;
+            border-left-color: var(--gn-teal);
+            background: rgba(0,212,204,0.06);
+            color: rgba(0,212,204,0.8);
         }
 
         #panel-marksix .ticket-summary.invalid {
-            border-left-color: #dc3545;
-            background: #fff5f5;
-            color: #c41c3b;
+            border-left-color: var(--cockpit-red);
+            background: rgba(192,57,43,0.08);
+            color: rgba(231,76,60,0.9);
         }
 
         #panel-marksix .summary-type { font-weight: bold; }
@@ -528,22 +782,30 @@
 
         #panel-marksix .add-ticket-btn {
             padding: 12px 24px;
-            background: #28a745;
-            color: white;
-            font-size: 16px;
+            background: rgba(0,212,204,0.12);
+            color: var(--gn-teal);
+            border: 1px solid rgba(0,212,204,0.4) !important;
+            font-size: 13px;
             margin-bottom: 20px;
             width: 100%;
+            letter-spacing: 2px;
+            clip-path: none;
+            text-shadow: 0 0 8px var(--gn-teal-glow);
+        }
+        #panel-marksix .add-ticket-btn:hover {
+            background: rgba(0,212,204,0.22);
+            box-shadow: 0 0 20px rgba(0,212,204,0.25) !important;
         }
 
-        #panel-marksix .add-ticket-btn:hover { background: #218838; }
-
         #panel-marksix .total-summary {
-            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(184,77,8,0.5) 0%, rgba(232,101,10,0.35) 100%);
+            border: 1px solid rgba(232,101,10,0.5);
+            border-radius: 3px;
             padding: 20px;
-            color: white;
+            color: var(--armor-white);
             margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+            box-shadow: 0 4px 20px rgba(232,101,10,0.2);
+            animation: orangePulse 3s ease-in-out infinite;
         }
 
         #panel-marksix .total-summary-title {
@@ -567,24 +829,26 @@
         }
 
         #panel-marksix .upload-area {
-            border: 2px dashed #667eea;
-            border-radius: 8px;
+            border: 1px dashed rgba(0,212,204,0.4);
+            border-radius: 3px;
             padding: 30px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
             margin-bottom: 15px;
-            background: #f8f9ff;
+            background: rgba(0,212,204,0.04);
+            color: rgba(240,237,232,0.5);
         }
 
         #panel-marksix .upload-area:hover {
-            border-color: #5568d3;
-            background: #f0f2ff;
+            border-color: var(--gn-teal);
+            background: rgba(0,212,204,0.08);
+            box-shadow: 0 0 20px rgba(0,212,204,0.1);
         }
 
         #panel-marksix .upload-area.dragover {
-            border-color: #28a745;
-            background: #e8f5e9;
+            border-color: var(--primary);
+            background: rgba(232,101,10,0.08);
         }
 
         #panel-marksix #fileInput { display: none; }
@@ -631,23 +895,23 @@
         #panel-marksix .ocr-status {
             margin-top: 15px;
             padding: 15px;
-            background: #e3f2fd;
-            border-left: 4px solid #667eea;
-            border-radius: 3px;
-            font-size: 14px;
-            color: #333;
+            background: rgba(0,212,204,0.07);
+            border-left: 3px solid var(--gn-teal);
+            border-radius: 2px;
+            font-size: 13px;
+            color: rgba(240,237,232,0.7);
             display: none;
         }
-
         #panel-marksix .ocr-status.show { display: block; }
-        #panel-marksix .ocr-status.success { background: #e8f5e9; border-left-color: #28a745; color: #28a745; }
-        #panel-marksix .ocr-status.error { background: #ffebee; border-left-color: #dc3545; color: #dc3545; }
+        #panel-marksix .ocr-status.success { background: rgba(0,212,204,0.1); border-left-color: var(--gn-teal); color: var(--gn-teal); }
+        #panel-marksix .ocr-status.error { background: rgba(192,57,43,0.1); border-left-color: var(--cockpit-red); color: #e74c3c; }
 
         #panel-marksix .results {
             margin-top: 30px;
             padding: 20px;
-            background: #f8f9fa;
-            border-radius: 5px;
+            background: rgba(13,15,20,0.5);
+            border: 1px solid rgba(232,101,10,0.2);
+            border-radius: 3px;
             display: none;
         }
 
@@ -655,11 +919,12 @@
 
         #panel-marksix .summary-box {
             padding: 20px;
-            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
-            border-radius: 10px;
-            color: white;
+            background: linear-gradient(135deg, rgba(232,101,10,0.3) 0%, rgba(28,33,48,0.95) 60%, rgba(0,212,204,0.15) 100%);
+            border: 1px solid rgba(232,101,10,0.5);
+            border-radius: 4px;
+            color: var(--armor-white);
             margin-bottom: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 30px rgba(232,101,10,0.2);
         }
 
         #panel-marksix .summary-title {
@@ -705,75 +970,81 @@
         #panel-marksix .prize-amount { font-size: 16px; font-weight: bold; }
 
         #panel-marksix .result-item {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             padding: 15px;
-            background: white;
-            border-left: 4px solid #667eea;
-            border-radius: 3px;
+            background: rgba(28,33,48,0.8);
+            border-left: 3px solid rgba(232,101,10,0.4);
+            border: 1px solid rgba(232,101,10,0.2);
+            border-left-width: 3px;
+            border-radius: 2px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.25s;
+            color: rgba(240,237,232,0.7);
         }
 
         #panel-marksix .result-item.winning {
-            border-left-color: #28a745;
-            background: #e8f5e9;
+            border-left-color: var(--gn-teal);
+            background: rgba(0,212,204,0.07);
             order: -1;
+            box-shadow: 0 0 20px rgba(0,212,204,0.1);
+            animation: gnPulse 3s ease-in-out infinite;
         }
 
         #panel-marksix .result-item.losing {
-            border-left-color: #ddd;
-            background: #fafafa;
+            border-left-color: rgba(240,237,232,0.15);
+            background: rgba(13,15,20,0.5);
             max-height: 50px;
             overflow: hidden;
         }
 
         #panel-marksix .result-item.losing.expanded { max-height: none; }
 
-        #panel-marksix .result-label { font-weight: bold; color: #333; margin-bottom: 5px; }
+        #panel-marksix .result-label { font-weight: bold; color: var(--armor-white); margin-bottom: 5px; letter-spacing: 0.5px; }
         #panel-marksix .result-status { font-size: 14px; margin-bottom: 5px; }
-        #panel-marksix .winning .result-status { color: #28a745; }
-        #panel-marksix .losing .result-status { color: #999; }
+        #panel-marksix .winning .result-status { color: var(--gn-teal); text-shadow: 0 0 8px var(--gn-teal-glow); }
+        #panel-marksix .losing .result-status { color: rgba(240,237,232,0.3); }
 
         #panel-marksix .result-details {
             font-size: 13px;
-            color: #666;
+            color: rgba(240,237,232,0.55);
             margin-top: 8px;
             padding: 8px;
-            background: rgba(0,0,0,0.05);
-            border-radius: 3px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 2px;
         }
 
-        #panel-marksix .result-prize { font-size: 14px; color: #28a745; font-weight: bold; margin-top: 8px; }
-        #panel-marksix .result-cost { font-size: 12px; color: #666; margin-top: 5px; }
-        #panel-marksix .expand-toggle { font-size: 12px; color: #999; margin-top: 5px; }
+        #panel-marksix .result-prize { font-size: 14px; color: var(--gn-teal); font-weight: bold; margin-top: 8px; text-shadow: 0 0 8px var(--gn-teal-glow); }
+        #panel-marksix .result-cost { font-size: 12px; color: rgba(240,237,232,0.4); margin-top: 5px; }
+        #panel-marksix .expand-toggle { font-size: 11px; color: rgba(232,101,10,0.6); margin-top: 5px; letter-spacing: 0.5px; }
 
         #panel-marksix .storage-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-        #panel-marksix .clear-btn { background: #dc3545; }
-        #panel-marksix .clear-btn:hover { background: #c82333; }
-        #panel-marksix .save-btn { background: #28a745; }
-        #panel-marksix .save-btn:hover { background: #218838; }
-        #panel-marksix .load-btn { background: #17a2b8; }
-        #panel-marksix .load-btn:hover { background: #138496; }
-        #panel-marksix .share-btn { background: #25d366; }
-        #panel-marksix .share-btn:hover { background: #1eaa54; }
+        #panel-marksix .clear-btn { background: linear-gradient(135deg, rgba(139,22,15,0.8), rgba(192,57,43,0.8)) !important; border-color: rgba(192,57,43,0.6) !important; }
+        #panel-marksix .clear-btn:hover { box-shadow: 0 0 16px rgba(192,57,43,0.5) !important; }
+        #panel-marksix .save-btn { background: linear-gradient(135deg, rgba(0,150,136,0.8), rgba(0,188,212,0.7)) !important; border-color: rgba(0,212,204,0.5) !important; }
+        #panel-marksix .save-btn:hover { box-shadow: 0 0 16px rgba(0,212,204,0.3) !important; }
+        #panel-marksix .load-btn { background: linear-gradient(135deg, rgba(13,60,120,0.8), rgba(30,100,180,0.7)) !important; border-color: rgba(30,120,200,0.5) !important; }
+        #panel-marksix .load-btn:hover { box-shadow: 0 0 16px rgba(30,100,180,0.4) !important; }
+        #panel-marksix .share-btn { background: linear-gradient(135deg, rgba(180,120,0,0.8), rgba(212,160,23,0.8)) !important; border-color: rgba(212,160,23,0.6) !important; color: var(--frame-black) !important; }
+        #panel-marksix .share-btn:hover { box-shadow: 0 0 16px rgba(212,160,23,0.4) !important; }
 
         #panel-marksix .progress-bar {
             width: 100%;
-            height: 5px;
-            background: #ddd;
-            border-radius: 5px;
+            height: 3px;
+            background: rgba(240,237,232,0.1);
+            border-radius: 2px;
             overflow: hidden;
             margin: 10px 0;
         }
 
         #panel-marksix .progress-fill {
             height: 100%;
-            background: #667eea;
+            background: linear-gradient(90deg, var(--gn-teal), var(--primary));
             width: 0%;
             transition: width 0.3s;
+            box-shadow: 0 0 8px var(--gn-teal-glow);
         }
 
-        /* ─── 模態框 ─── */
+        /* ─── 模態框（Celestial Being システムウィンドウ）─── */
         .modal {
             display: none;
             position: fixed;
@@ -782,7 +1053,8 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(5,7,12,0.85);
+            backdrop-filter: blur(4px);
         }
 
         .modal.show {
@@ -792,31 +1064,48 @@
         }
 
         .modal-content {
-            background: white;
+            background: linear-gradient(135deg, var(--gunmetal) 0%, var(--frame-black) 100%);
+            border: 1px solid rgba(232,101,10,0.5);
             padding: 30px;
-            border-radius: 10px;
+            border-radius: 4px;
             max-width: 500px;
             width: 90%;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(232,101,10,0.2);
+            clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px));
+            position: relative;
+        }
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 60px; height: 60px;
+            background: linear-gradient(225deg, rgba(232,101,10,0.3) 0%, transparent 60%);
+            pointer-events: none;
         }
 
         .modal-title {
-            font-size: 20px;
-            font-weight: bold;
+            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--primary);
             margin-bottom: 20px;
+            text-shadow: 0 0 10px var(--primary-glow);
+            text-transform: uppercase;
         }
 
         .share-text-area {
             width: 100%;
             height: 300px;
             padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            border: 1px solid rgba(0,212,204,0.3);
+            border-radius: 2px;
             font-family: 'Courier New', monospace;
             font-size: 12px;
             resize: vertical;
             margin-bottom: 15px;
-            background: #f8f9fa;
+            background: rgba(13,15,20,0.9);
+            color: rgba(0,212,204,0.85);
         }
 
         .save-list {
@@ -827,8 +1116,9 @@
 
         .save-item {
             padding: 10px;
-            background: #f8f9fa;
-            border-radius: 5px;
+            background: rgba(13,15,20,0.7);
+            border: 1px solid rgba(232,101,10,0.25);
+            border-radius: 2px;
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
@@ -837,8 +1127,8 @@
         }
 
         .save-item-info { flex: 1; min-width: 150px; }
-        .save-item-name { font-weight: bold; color: #333; }
-        .save-item-time { font-size: 12px; color: #999; }
+        .save-item-name { font-weight: bold; color: var(--primary); }
+        .save-item-time { font-size: 12px; color: rgba(240,237,232,0.35); }
         .save-item-buttons { display: flex; gap: 5px; margin-top: 8px; }
 
         .save-item-btn {
@@ -853,35 +1143,68 @@
         }
 
         .close-modal {
-            background: #999;
+            background: rgba(240,237,232,0.1);
             padding: 8px 15px;
             width: auto;
             margin: 0;
-            border: none;
-            border-radius: 5px;
+            border: 1px solid rgba(240,237,232,0.2) !important;
+            border-radius: 2px !important;
             cursor: pointer;
-            color: white;
+            color: rgba(240,237,232,0.6);
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
+            letter-spacing: 1px;
+            clip-path: none !important;
         }
+        .close-modal:hover { background: rgba(240,237,232,0.18) !important; box-shadow: none !important; }
 
         .copy-success {
             display: none;
             margin-top: 10px;
             padding: 10px;
-            background: #e8f5e9;
-            border-left: 4px solid #28a745;
-            color: #28a745;
-            border-radius: 3px;
+            background: rgba(0,212,204,0.1);
+            border-left: 3px solid var(--gn-teal);
+            color: var(--gn-teal);
+            border-radius: 2px;
+            font-size: 13px;
+            text-shadow: 0 0 6px var(--gn-teal-glow);
         }
 
         .copy-success.show { display: block; }
 
+        /* ─── GN粒子エフェクト追加 ─── */
+        .gn-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gn-teal), var(--primary), var(--gn-teal), transparent);
+            margin: 8px 0;
+            opacity: 0.4;
+        }
+
+        /* combination-item */
+        #panel-marksix .combination-item {
+            background: rgba(13,15,20,0.7);
+            border: 1px solid rgba(232,101,10,0.15);
+            color: rgba(240,237,232,0.65);
+        }
+
+        /* ticket-combinations */
+        #panel-marksix .ticket-combinations {
+            background: rgba(13,15,20,0.8);
+            border: 1px solid rgba(232,101,10,0.2);
+        }
+
+        /* save-list */
+        .save-list { max-height: 300px; overflow-y: auto; margin-bottom: 15px; }
+        .save-list::-webkit-scrollbar { width: 4px; }
+        .save-list::-webkit-scrollbar-track { background: rgba(13,15,20,0.5); }
+        .save-list::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
+
         /* ─── 響應式 ─── */
         @media (max-width: 600px) {
-            .home-hero h1 { font-size: 26px; }
+            .home-hero h1 { font-size: 22px; letter-spacing: 2px; }
             .tools-grid { grid-template-columns: 1fr; }
-            .tab-btn { padding: 0 16px; font-size: 14px; }
+            .tab-btn { padding: 0 14px; font-size: 10px; }
+            .harute-spec-bar { gap: 16px; padding: 12px 16px; }
         }
     </style>
 </head>
@@ -889,13 +1212,17 @@
 
     <!-- ══ 頂部導航欄 ══ -->
     <nav class="navbar">
-        <div class="navbar-logo">🛠️ 我的工具站 <span>My Toolbox</span></div>
+        <div class="navbar-logo">
+            GN-011
+            <span class="gn-text">GUNDAM HARUTE</span>
+            <span class="model-num">// CELESTIAL BEING</span>
+        </div>
     </nav>
 
     <!-- ══ 分頁標籤列 ══ -->
     <div class="tab-bar" id="tabBar">
         <button class="tab-btn active" onclick="switchTab('home', this)">
-            <span class="tab-icon">🏠</span> 首頁
+            <span class="tab-icon">⬡</span> HANGAR
         </button>
         <button class="tab-btn" onclick="switchTab('marksix', this)">
             <span class="tab-icon">🎰</span> 六合彩核對
@@ -909,8 +1236,35 @@
         <!-- ▸ 首頁面板 -->
         <div class="tab-panel active" id="panel-home">
             <div class="home-hero">
-                <h1>我的工具站</h1>
+                <div class="subtitle-jp">CELESTIAL BEING — MOBILE SUIT GN-011</div>
+                <h1>TOOLBOX</h1>
                 <p>點選上方分頁，或點擊下方工具卡片快速進入</p>
+                <div class="harute-spec-bar">
+                    <div class="spec-item">
+                        <div class="spec-label">MODEL</div>
+                        <div class="spec-value">GN-011</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-label">HEIGHT</div>
+                        <div class="spec-value">19.0m</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-label">WEIGHT</div>
+                        <div class="spec-value">77.1t</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-label">PILOT</div>
+                        <div class="spec-value">ALLELUJAH</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-label">POWER</div>
+                        <div class="spec-value">GN DRIVE</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-label">MODE</div>
+                        <div class="spec-value">MARUTE</div>
+                    </div>
+                </div>
             </div>
             <div class="tools-grid">
                 <div class="tool-card" onclick="switchTabByName('marksix')">
@@ -920,7 +1274,7 @@
                         支援單式、複式、膽拖<br>
                         批量 OCR 識別 + 數據保存 + 一鍵分享
                     </div>
-                    <div class="tool-card-tag">彩票工具</div>
+                    <div class="tool-card-tag">LOTTERY TOOL</div>
                 </div>
                 <!-- 未來新工具卡片加在這裡 -->
             </div>
@@ -932,7 +1286,7 @@
                 <!-- 開獎號碼設定 -->
                 <div class="card">
                     <h1>🎰 六合彩中獎核對</h1>
-                    <p class="subtitle">支援單式、複式、膽拖 + 批量OCR + 數據保存 + 一鍵分享</p>
+                    <p class="subtitle">// SINGLE · COMPLEX · DAN-TUO · BATCH OCR · SAVE · SHARE</p>
                     <div class="section">
                         <div class="section-title">第一步：設定開獎號碼</div>
                         <div class="input-group">
