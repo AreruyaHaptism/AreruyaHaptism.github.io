@@ -3,85 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GN-011 ガンダムハルート | 工具站</title>
-    <!-- Google Fonts: Orbitron for sci-fi feel -->
+    <title>Celestial Being | 工具站</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         /* ══════════════════════════════════════════
-           ガンダムハルート (GN-011) カラーテーマ
-           Primary:  #E8650A  (Harute Orange)
-           Accent:   #00D4CC  (GN Particle Teal)
-           Dark:     #0D0F14  (Inner Frame Black)
-           Mid:      #1C2130  (Gunmetal)
-           Light:    #F0EDE8  (White Armor)
-           Red:      #C0392B  (Cockpit / Core Red)
-           Gold:     #D4A017  (V-Fin Gold)
-        ═══════════════════════════════════════════ */
+           MECH THEME VARIABLES
+           Default = Harute (orange)
+        ══════════════════════════════════════════ */
         :root {
-            --primary:       #E8650A;
-            --primary-dark:  #B84D08;
-            --primary-glow:  rgba(232, 101, 10, 0.6);
-            --gn-teal:       #00D4CC;
-            --gn-teal-dim:   rgba(0, 212, 204, 0.25);
-            --gn-teal-glow:  rgba(0, 212, 204, 0.55);
-            --armor-white:   #F0EDE8;
-            --frame-black:   #0D0F14;
-            --gunmetal:      #1C2130;
-            --gunmetal-mid:  #2A3245;
-            --gunmetal-light:#3D4F6A;
-            --cockpit-red:   #C0392B;
-            --vfin-gold:     #D4A017;
-            --bg:            #0A0C10;
-            --nav-height: 60px;
-            --tab-height: 52px;
+            --primary:        #E8650A;
+            --primary-dark:   #B84D08;
+            --primary-glow:   rgba(232,101,10,0.6);
+            --gn-teal:        #00D4CC;
+            --gn-teal-dim:    rgba(0,212,204,0.25);
+            --gn-teal-glow:   rgba(0,212,204,0.55);
+            --armor-white:    #F0EDE8;
+            --frame-black:    #0D0F14;
+            --gunmetal:       #1C2130;
+            --gunmetal-mid:   #2A3245;
+            --gunmetal-light: #3D4F6A;
+            --cockpit-red:    #C0392B;
+            --vfin-gold:      #D4A017;
+            --bg:             #0A0C10;
+            --nav-height:     60px;
+            --tab-height:     52px;
+            /* Per-mech accent transitions */
+            --mech-primary:   #E8650A;
+            --mech-secondary: #00D4CC;
+        }
+
+        /* ── Theme colour palettes per mech ── */
+        body.theme-kyrios-ms, body.theme-kyrios-ma {
+            --mech-primary:   #1A7AFF;
+            --mech-secondary: #00D4CC;
+        }
+        body.theme-arios-ms, body.theme-arios-ma {
+            --mech-primary:   #0DBF6F;
+            --mech-secondary: #A0E4C8;
+        }
+        body.theme-harute-ms, body.theme-harute-ma {
+            --mech-primary:   #E8650A;
+            --mech-secondary: #00D4CC;
         }
 
         body {
             font-family: 'Microsoft YaHei', Arial, sans-serif;
             background: var(--bg);
             min-height: 100vh;
-            /* Harute dark cockpit background */
             background-image:
                 radial-gradient(ellipse at 15% 50%, rgba(232,101,10,0.07) 0%, transparent 55%),
                 radial-gradient(ellipse at 85% 30%, rgba(0,212,204,0.07) 0%, transparent 55%),
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 39px,
-                    rgba(0,212,204,0.03) 40px
-                ),
-                repeating-linear-gradient(
-                    90deg,
-                    transparent,
-                    transparent 39px,
-                    rgba(0,212,204,0.03) 40px
-                );
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,212,204,0.03) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,212,204,0.03) 40px);
         }
 
-        /* ─── 頂部導航欄（ハルート装甲スタイル）─── */
+        /* ══════════════════════════════
+           BACKGROUND WATERMARK LAYER
+        ══════════════════════════════ */
+        #mech-watermark {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .wm-slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 1.2s ease;
+        }
+        .wm-slide.active { opacity: 1; }
+
+        .wm-slide img {
+            /* MS forms: portrait, MA forms: landscape */
+            max-height: 88vh;
+            max-width: 80vw;
+            object-fit: contain;
+            filter: saturate(0.5) brightness(0.28);
+            user-select: none;
+        }
+
+        /* ══════════════════════════
+           MECH INFO PANEL (bottom-left)
+        ══════════════════════════ */
+        #mech-info-panel {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            z-index: 50;
+            max-width: 320px;
+            pointer-events: none;
+        }
+
+        .mech-info-card {
+            display: none;
+            background: rgba(10,12,16,0.82);
+            border: 1px solid var(--mech-primary, #E8650A);
+            border-left: 3px solid var(--mech-primary, #E8650A);
+            border-radius: 3px;
+            padding: 14px 18px;
+            backdrop-filter: blur(6px);
+            animation: fadeIn 0.5s ease;
+            box-shadow: 0 0 24px rgba(0,0,0,0.6);
+        }
+        .mech-info-card.active { display: block; }
+
+        .mic-model {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            letter-spacing: 3px;
+            color: var(--gn-teal);
+            opacity: 0.8;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .mic-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--armor-white);
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px var(--mech-primary, #E8650A);
+            margin-bottom: 6px;
+        }
+        .mic-name span { color: var(--mech-primary, #E8650A); }
+        .mic-form {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--mech-secondary, #00D4CC);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            opacity: 0.85;
+        }
+        .mic-desc {
+            font-size: 12px;
+            color: rgba(240,237,232,0.6);
+            line-height: 1.65;
+        }
+        .mic-specs {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .mic-spec-item { text-align: center; }
+        .mic-spec-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 8px;
+            color: var(--gn-teal);
+            letter-spacing: 1px;
+            opacity: 0.7;
+        }
+        .mic-spec-val {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--mech-primary, #E8650A);
+            text-shadow: 0 0 6px var(--primary-glow);
+        }
+
+        /* ── Scroll progress dots ── */
+        #mech-dots {
+            position: fixed;
+            bottom: 50%;
+            right: 18px;
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .mech-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: rgba(240,237,232,0.2);
+            border: 1px solid rgba(240,237,232,0.3);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        .mech-dot.active {
+            background: var(--mech-primary, #E8650A);
+            box-shadow: 0 0 8px var(--mech-primary, #E8650A);
+        }
+
+        /* ══════════════════════════════════════════
+           TOP NAVIGATION BAR
+        ══════════════════════════════════════════ */
         .navbar {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             height: var(--nav-height);
             background: linear-gradient(135deg, var(--frame-black) 0%, var(--gunmetal) 50%, var(--frame-black) 100%);
             display: flex;
             align-items: center;
-            padding: 0 24px;
+            justify-content: space-between;
+            padding: 0 20px 0 24px;
             z-index: 1000;
             box-shadow: 0 2px 0 var(--primary), 0 4px 20px rgba(0,0,0,0.7);
             border-bottom: 2px solid var(--primary);
         }
-
-        /* 左側オレンジの装甲ライン */
         .navbar::before {
             content: '';
             position: absolute;
@@ -99,7 +226,6 @@
             user-select: none;
             text-shadow: 0 0 12px var(--primary-glow);
         }
-
         .navbar-logo .gn-text {
             color: var(--gn-teal);
             font-size: 12px;
@@ -109,7 +235,6 @@
             opacity: 0.85;
             text-shadow: 0 0 8px var(--gn-teal-glow);
         }
-
         .navbar-logo .model-num {
             color: var(--armor-white);
             font-size: 11px;
@@ -118,12 +243,35 @@
             letter-spacing: 1px;
         }
 
-        /* ─── 分頁標籤列（GNシステムコンソール風）─── */
+        /* ── Celestial Being SVG logo (top-right) ── */
+        .cb-logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .cb-logo-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            color: rgba(212,160,23,0.75);
+            letter-spacing: 2px;
+            text-align: right;
+            line-height: 1.4;
+            text-shadow: 0 0 8px rgba(212,160,23,0.4);
+        }
+        .cb-logo-svg {
+            width: 40px;
+            height: 40px;
+            filter: drop-shadow(0 0 6px rgba(212,160,23,0.55));
+        }
+
+        /* ══════════════════════════════════════════
+           TAB BAR
+        ══════════════════════════════════════════ */
         .tab-bar {
             position: fixed;
             top: var(--nav-height);
-            left: 0;
-            right: 0;
+            left: 0; right: 0;
             height: var(--tab-height);
             background: linear-gradient(180deg, var(--gunmetal) 0%, var(--frame-black) 100%);
             border-bottom: 1px solid rgba(232,101,10,0.4);
@@ -134,7 +282,6 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
-
         .tab-bar::-webkit-scrollbar { display: none; }
 
         .tab-btn {
@@ -155,13 +302,10 @@
             letter-spacing: 1.5px;
             text-transform: uppercase;
         }
-
         .tab-btn::after {
             content: '';
             position: absolute;
-            bottom: 0;
-            left: 12px;
-            right: 12px;
+            bottom: 0; left: 12px; right: 12px;
             height: 2px;
             background: linear-gradient(90deg, var(--gn-teal), var(--primary));
             border-radius: 2px 2px 0 0;
@@ -169,61 +313,37 @@
             transition: transform 0.25s;
             box-shadow: 0 0 8px var(--gn-teal-glow);
         }
-
-        .tab-btn:hover {
-            color: var(--armor-white);
-            background: rgba(232,101,10,0.08);
-        }
-
-        .tab-btn.active {
-            color: var(--primary);
-            font-weight: 700;
-            background: rgba(232,101,10,0.12);
-            text-shadow: 0 0 10px var(--primary-glow);
-        }
-
+        .tab-btn:hover { color: var(--armor-white); background: rgba(232,101,10,0.08); }
+        .tab-btn.active { color: var(--primary); font-weight: 700; background: rgba(232,101,10,0.12); text-shadow: 0 0 10px var(--primary-glow); }
         .tab-btn.active::after { transform: scaleX(1); }
-
         .tab-icon { font-size: 16px; }
 
-        /* ─── 主內容區 ─── */
+        /* ══════════════════════════════════════════
+           MAIN CONTENT
+        ══════════════════════════════════════════ */
         .main-content {
             margin-top: calc(var(--nav-height) + var(--tab-height));
             min-height: calc(100vh - var(--nav-height) - var(--tab-height));
+            position: relative;
+            z-index: 2;
         }
-
-        /* ─── HUD スキャンライン エフェクト ─── */
         .main-content::before {
             content: '';
             position: fixed;
             top: calc(var(--nav-height) + var(--tab-height));
             left: 0; right: 0; bottom: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 3px,
-                rgba(0,212,204,0.012) 4px
-            );
+            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,212,204,0.012) 4px);
             pointer-events: none;
             z-index: 1;
         }
 
-        /* ─── 分頁面板 ─── */
-        .tab-panel {
-            display: none;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .tab-panel.active {
-            display: block;
-        }
+        .tab-panel { display: none; animation: fadeIn 0.2s ease; }
+        .tab-panel.active { display: block; }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
-
-        /* GN粒子パルスアニメーション */
         @keyframes gnPulse {
             0%, 100% { box-shadow: 0 0 6px var(--gn-teal-glow), 0 0 20px rgba(0,212,204,0.15); }
             50%       { box-shadow: 0 0 14px var(--gn-teal-glow), 0 0 40px rgba(0,212,204,0.3); }
@@ -232,16 +352,10 @@
             0%, 100% { box-shadow: 0 0 6px var(--primary-glow), 0 0 20px rgba(232,101,10,0.2); }
             50%       { box-shadow: 0 0 16px var(--primary-glow), 0 0 50px rgba(232,101,10,0.4); }
         }
-        @keyframes scanline {
-            0%   { transform: translateY(-100%); }
-            100% { transform: translateY(100vh); }
-        }
-        @keyframes borderGlow {
-            0%, 100% { border-color: rgba(232,101,10,0.4); }
-            50%       { border-color: rgba(232,101,10,0.9); }
-        }
 
-        /* ─── 首頁面板（Celestial Being ハンガー風）─── */
+        /* ══════════════════════════════════════════
+           HOME PANEL
+        ══════════════════════════════════════════ */
         #panel-home {
             padding: 40px 20px;
             display: flex;
@@ -256,23 +370,16 @@
             padding: 50px 20px 40px;
             position: relative;
         }
-
-        /* GNドライヴ輝きサークル */
         .home-hero::before {
             content: '';
             position: absolute;
             top: 20px; left: 50%;
             transform: translateX(-50%);
             width: 300px; height: 300px;
-            background: radial-gradient(circle,
-                rgba(0,212,204,0.08) 0%,
-                rgba(232,101,10,0.05) 40%,
-                transparent 70%
-            );
+            background: radial-gradient(circle, rgba(0,212,204,0.08) 0%, rgba(232,101,10,0.05) 40%, transparent 70%);
             border-radius: 50%;
             pointer-events: none;
         }
-
         .home-hero h1 {
             font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
             font-size: 32px;
@@ -285,7 +392,6 @@
             letter-spacing: 4px;
             text-transform: uppercase;
         }
-
         .home-hero .subtitle-jp {
             font-family: 'Orbitron', sans-serif;
             font-size: 11px;
@@ -295,14 +401,9 @@
             text-shadow: 0 0 10px var(--gn-teal-glow);
             margin-bottom: 4px;
         }
+        .home-hero p { color: rgba(240,237,232,0.45); font-size: 14px; letter-spacing: 1px; }
 
-        .home-hero p {
-            color: rgba(240,237,232,0.45);
-            font-size: 14px;
-            letter-spacing: 1px;
-        }
-
-        /* ハルートスペックバー */
+        /* Spec bar – shows current mech's data */
         .harute-spec-bar {
             display: flex;
             gap: 28px;
@@ -315,11 +416,7 @@
             background: rgba(28,33,48,0.6);
             backdrop-filter: blur(4px);
         }
-
-        .spec-item {
-            text-align: center;
-        }
-
+        .spec-item { text-align: center; }
         .spec-label {
             font-family: 'Orbitron', sans-serif;
             font-size: 9px;
@@ -328,7 +425,6 @@
             opacity: 0.7;
             text-transform: uppercase;
         }
-
         .spec-value {
             font-family: 'Orbitron', sans-serif;
             font-size: 13px;
@@ -338,6 +434,66 @@
             text-shadow: 0 0 8px var(--primary-glow);
         }
 
+        /* Mech info display in hero (replaces static spec bar) */
+        .mech-hero-info {
+            width: 100%;
+            max-width: 600px;
+            margin: 28px auto 0;
+        }
+        .mhi-slide {
+            display: none;
+            padding: 16px 24px;
+            border: 1px solid rgba(232,101,10,0.35);
+            border-radius: 4px;
+            background: rgba(28,33,48,0.65);
+            backdrop-filter: blur(6px);
+            animation: fadeIn 0.5s ease;
+        }
+        .mhi-slide.active { display: block; }
+        .mhi-header {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .mhi-model {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--gn-teal);
+            letter-spacing: 2px;
+            opacity: 0.8;
+        }
+        .mhi-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary-glow);
+            letter-spacing: 2px;
+        }
+        .mhi-form {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--gn-teal);
+            letter-spacing: 2px;
+            opacity: 0.7;
+        }
+        .mhi-desc {
+            font-size: 13px;
+            color: rgba(240,237,232,0.65);
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+        .mhi-specs {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .mhi-spec { text-align: center; }
+        .mhi-spec-l { font-family: 'Orbitron', sans-serif; font-size: 8px; color: var(--gn-teal); letter-spacing: 1px; opacity: 0.7; }
+        .mhi-spec-v { font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700; color: var(--primary); text-shadow: 0 0 6px var(--primary-glow); }
+
         .tools-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -346,8 +502,6 @@
             max-width: 900px;
             margin-top: 32px;
         }
-
-        /* ツールカード（装甲パネル風）*/
         .tool-card {
             background: linear-gradient(135deg, var(--gunmetal) 0%, var(--gunmetal-mid) 100%);
             border-radius: 4px;
@@ -360,8 +514,6 @@
             overflow: hidden;
             clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
         }
-
-        /* 装甲コーナーアクセント */
         .tool-card::before {
             content: '';
             position: absolute;
@@ -369,7 +521,6 @@
             width: 40px; height: 40px;
             background: linear-gradient(225deg, rgba(232,101,10,0.35) 0%, transparent 60%);
         }
-
         .tool-card::after {
             content: '';
             position: absolute;
@@ -377,55 +528,19 @@
             width: 40px; height: 40px;
             background: linear-gradient(45deg, rgba(0,212,204,0.2) 0%, transparent 60%);
         }
-
         .tool-card:hover {
             transform: translateY(-5px);
             border-color: var(--primary);
-            box-shadow:
-                0 0 0 1px rgba(232,101,10,0.5),
-                0 8px 32px rgba(232,101,10,0.25),
-                0 0 40px rgba(0,212,204,0.08);
+            box-shadow: 0 0 0 1px rgba(232,101,10,0.5), 0 8px 32px rgba(232,101,10,0.25), 0 0 40px rgba(0,212,204,0.08);
         }
+        .tool-card-icon { font-size: 42px; margin-bottom: 14px; display: block; filter: drop-shadow(0 0 8px rgba(232,101,10,0.5)); }
+        .tool-card-title { font-family: 'Orbitron', 'Microsoft YaHei', sans-serif; font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 10px; letter-spacing: 1.5px; text-shadow: 0 0 8px var(--primary-glow); }
+        .tool-card-desc { font-size: 12px; color: rgba(240,237,232,0.5); line-height: 1.7; }
+        .tool-card-tag { display: inline-block; margin-top: 14px; padding: 3px 14px; background: rgba(0,212,204,0.15); color: var(--gn-teal); border: 1px solid rgba(0,212,204,0.4); border-radius: 2px; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-shadow: 0 0 6px var(--gn-teal-glow); }
 
-        .tool-card-icon {
-            font-size: 42px;
-            margin-bottom: 14px;
-            display: block;
-            filter: drop-shadow(0 0 8px rgba(232,101,10,0.5));
-        }
-
-        .tool-card-title {
-            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 10px;
-            letter-spacing: 1.5px;
-            text-shadow: 0 0 8px var(--primary-glow);
-        }
-
-        .tool-card-desc {
-            font-size: 12px;
-            color: rgba(240,237,232,0.5);
-            line-height: 1.7;
-        }
-
-        .tool-card-tag {
-            display: inline-block;
-            margin-top: 14px;
-            padding: 3px 14px;
-            background: rgba(0,212,204,0.15);
-            color: var(--gn-teal);
-            border: 1px solid rgba(0,212,204,0.4);
-            border-radius: 2px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-shadow: 0 0 6px var(--gn-teal-glow);
-        }
-
-        /* ─── 六合彩工具面板（ハルートコックピット風）─── */
+        /* ══════════════════════════════════════════
+           MARKSIX PANEL  (all original styles preserved)
+        ══════════════════════════════════════════ */
         #panel-marksix {
             background:
                 radial-gradient(ellipse at 50% 0%, rgba(232,101,10,0.12) 0%, transparent 50%),
@@ -436,13 +551,7 @@
             position: relative;
             z-index: 2;
         }
-
-        /* ── 以下為原 marksixmatch.html 全部樣式 ── */
-        #panel-marksix .container {
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-
+        #panel-marksix .container { max-width: 1000px; margin: 0 auto; }
         #panel-marksix .card {
             background: linear-gradient(135deg, var(--gunmetal) 0%, var(--gunmetal-mid) 100%);
             border: 1px solid rgba(232,101,10,0.35);
@@ -460,7 +569,6 @@
             width: 50px; height: 50px;
             background: linear-gradient(225deg, rgba(232,101,10,0.3) 0%, transparent 60%);
         }
-
         #panel-marksix h1 {
             font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
             color: var(--primary);
@@ -470,553 +578,112 @@
             letter-spacing: 3px;
             text-shadow: 0 0 16px var(--primary-glow);
         }
-
-        #panel-marksix .subtitle {
-            text-align: center;
-            color: rgba(0,212,204,0.7);
-            margin-bottom: 30px;
-            font-size: 12px;
-            letter-spacing: 1.5px;
-            text-shadow: 0 0 8px var(--gn-teal-glow);
-        }
-
-        #panel-marksix .section-title {
-            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 15px;
-            font-size: 13px;
-            letter-spacing: 2px;
-            border-bottom: 1px solid rgba(232,101,10,0.5);
-            padding-bottom: 10px;
-            text-shadow: 0 0 8px var(--primary-glow);
-            text-transform: uppercase;
-        }
-
-        #panel-marksix .section {
-            margin-bottom: 25px;
-        }
-
-        #panel-marksix .input-group {
-            margin-bottom: 15px;
-        }
-
-        #panel-marksix label {
-            display: block;
-            margin-bottom: 8px;
-            color: rgba(240,237,232,0.75);
-            font-size: 13px;
-            letter-spacing: 0.5px;
-        }
-
+        #panel-marksix .subtitle { text-align: center; color: rgba(0,212,204,0.7); margin-bottom: 30px; font-size: 12px; letter-spacing: 1.5px; text-shadow: 0 0 8px var(--gn-teal-glow); }
+        #panel-marksix .section-title { font-family: 'Orbitron', 'Microsoft YaHei', sans-serif; font-weight: 700; color: var(--primary); margin-bottom: 15px; font-size: 13px; letter-spacing: 2px; border-bottom: 1px solid rgba(232,101,10,0.5); padding-bottom: 10px; text-shadow: 0 0 8px var(--primary-glow); text-transform: uppercase; }
+        #panel-marksix .section { margin-bottom: 25px; }
+        #panel-marksix .input-group { margin-bottom: 15px; }
+        #panel-marksix label { display: block; margin-bottom: 8px; color: rgba(240,237,232,0.75); font-size: 13px; letter-spacing: 0.5px; }
         #panel-marksix input[type="number"],
         #panel-marksix textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid rgba(232,101,10,0.35);
-            border-radius: 3px;
-            font-size: 14px;
-            font-family: 'Courier New', monospace;
-            background: rgba(13,15,20,0.8);
-            color: var(--armor-white);
+            width: 100%; padding: 10px; border: 1px solid rgba(232,101,10,0.35); border-radius: 3px;
+            font-size: 14px; font-family: 'Courier New', monospace; background: rgba(13,15,20,0.8); color: var(--armor-white);
         }
-
-        #panel-marksix textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-
+        #panel-marksix textarea { min-height: 120px; resize: vertical; }
         #panel-marksix input[type="number"]:focus,
-        #panel-marksix textarea:focus {
-            outline: none;
-            border-color: var(--gn-teal);
-            box-shadow: 0 0 0 2px rgba(0,212,204,0.2), 0 0 12px rgba(0,212,204,0.15);
-        }
-
-        #panel-marksix .number-inputs {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        #panel-marksix .number-input-wrapper {
-            display: flex;
-            flex-direction: column;
-        }
-
-        #panel-marksix .number-input-wrapper label {
-            font-size: 10px;
-            margin-bottom: 5px;
-            color: rgba(0,212,204,0.65);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        #panel-marksix .number-input-wrapper input {
-            padding: 8px;
-            font-size: 14px;
-            text-align: center;
-        }
-
+        #panel-marksix textarea:focus { outline: none; border-color: var(--gn-teal); box-shadow: 0 0 0 2px rgba(0,212,204,0.2), 0 0 12px rgba(0,212,204,0.15); }
+        #panel-marksix .number-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        #panel-marksix .number-input-wrapper { display: flex; flex-direction: column; }
+        #panel-marksix .number-input-wrapper label { font-size: 10px; margin-bottom: 5px; color: rgba(0,212,204,0.65); letter-spacing: 1px; text-transform: uppercase; }
+        #panel-marksix .number-input-wrapper input { padding: 8px; font-size: 14px; text-align: center; }
         #panel-marksix button {
             padding: 11px 20px;
             background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
-            color: var(--armor-white);
-            border: 1px solid rgba(232,101,10,0.6);
-            border-radius: 3px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-right: 10px;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
+            color: var(--armor-white); border: 1px solid rgba(232,101,10,0.6); border-radius: 3px;
+            font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            margin-right: 10px; margin-bottom: 10px; letter-spacing: 1px;
             clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
         }
-        #panel-marksix button:hover {
-            background: linear-gradient(135deg, var(--primary) 0%, #FF8832 100%);
-            box-shadow: 0 0 16px var(--primary-glow);
-        }
+        #panel-marksix button:hover { background: linear-gradient(135deg, var(--primary) 0%, #FF8832 100%); box-shadow: 0 0 16px var(--primary-glow); }
         #panel-marksix button:disabled { background: var(--gunmetal); color: #555; cursor: not-allowed; border-color: #333; }
-
-        #panel-marksix .drawing-numbers {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
+        #panel-marksix .drawing-numbers { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
         #panel-marksix .number-ball {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
+            width: 50px; height: 50px; border-radius: 50%;
             background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-            color: var(--armor-white);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-            font-size: 18px;
-            font-family: 'Orbitron', monospace;
+            color: var(--armor-white); display: flex; justify-content: center; align-items: center;
+            font-weight: bold; font-size: 18px; font-family: 'Orbitron', monospace;
             box-shadow: 0 0 12px var(--primary-glow), inset 0 1px 0 rgba(255,255,255,0.2);
             border: 1px solid rgba(232,101,10,0.6);
         }
-
-        #panel-marksix .number-ball.special {
-            background: linear-gradient(135deg, var(--cockpit-red), #e74c3c);
-            border: 2px solid rgba(192,57,43,0.8);
-            box-shadow: 0 0 14px rgba(192,57,43,0.6), inset 0 1px 0 rgba(255,255,255,0.2);
-        }
-
-        #panel-marksix .info-text {
-            font-size: 11px;
-            color: rgba(0,212,204,0.5);
-            margin-top: 8px;
-            letter-spacing: 0.5px;
-        }
-
-        #panel-marksix .input-guide-box {
-            background: rgba(0,212,204,0.07);
-            border-left: 3px solid var(--gn-teal);
-            padding: 15px;
-            border-radius: 3px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            color: rgba(240,237,232,0.7);
-            box-shadow: inset 0 0 20px rgba(0,212,204,0.04);
-        }
-
-        #panel-marksix .input-guide-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 10px;
-            font-weight: bold;
-            color: var(--gn-teal);
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-            text-shadow: 0 0 8px var(--gn-teal-glow);
-        }
-
-        #panel-marksix .input-guide-item {
-            margin-bottom: 6px;
-            line-height: 1.4;
-        }
-
-        #panel-marksix .code {
-            background: rgba(13,15,20,0.8);
-            padding: 2px 7px;
-            border-radius: 2px;
-            font-family: 'Courier New', monospace;
-            color: var(--primary);
-            border: 1px solid rgba(232,101,10,0.3);
-        }
-
+        #panel-marksix .number-ball.special { background: linear-gradient(135deg, var(--cockpit-red), #e74c3c); border: 2px solid rgba(192,57,43,0.8); box-shadow: 0 0 14px rgba(192,57,43,0.6), inset 0 1px 0 rgba(255,255,255,0.2); }
+        #panel-marksix .info-text { font-size: 11px; color: rgba(0,212,204,0.5); margin-top: 8px; letter-spacing: 0.5px; }
+        #panel-marksix .input-guide-box { background: rgba(0,212,204,0.07); border-left: 3px solid var(--gn-teal); padding: 15px; border-radius: 3px; margin-bottom: 20px; font-size: 13px; color: rgba(240,237,232,0.7); box-shadow: inset 0 0 20px rgba(0,212,204,0.04); }
+        #panel-marksix .input-guide-title { font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: bold; color: var(--gn-teal); letter-spacing: 2px; margin-bottom: 10px; text-shadow: 0 0 8px var(--gn-teal-glow); }
+        #panel-marksix .input-guide-item { margin-bottom: 6px; line-height: 1.4; }
+        #panel-marksix .code { background: rgba(13,15,20,0.8); padding: 2px 7px; border-radius: 2px; font-family: 'Courier New', monospace; color: var(--primary); border: 1px solid rgba(232,101,10,0.3); }
         #panel-marksix .tickets-container { margin-bottom: 20px; }
-
-        #panel-marksix .ticket-item {
-            background: rgba(13,15,20,0.7);
-            border: 1px solid rgba(232,101,10,0.25);
-            border-left: 3px solid var(--primary);
-            border-radius: 3px;
-            padding: 15px;
-            margin-bottom: 10px;
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-        }
-
-        #panel-marksix .ticket-item-number {
-            font-family: 'Orbitron', monospace;
-            font-weight: bold;
-            color: var(--gn-teal);
-            min-width: 30px;
-            text-align: center;
-            margin-top: 5px;
-            font-size: 12px;
-            text-shadow: 0 0 8px var(--gn-teal-glow);
-        }
-
+        #panel-marksix .ticket-item { background: rgba(13,15,20,0.7); border: 1px solid rgba(232,101,10,0.25); border-left: 3px solid var(--primary); border-radius: 3px; padding: 15px; margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-start; }
+        #panel-marksix .ticket-item-number { font-family: 'Orbitron', monospace; font-weight: bold; color: var(--gn-teal); min-width: 30px; text-align: center; margin-top: 5px; font-size: 12px; text-shadow: 0 0 8px var(--gn-teal-glow); }
         #panel-marksix .ticket-item-content { flex: 1; }
-
-        #panel-marksix .ticket-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid rgba(232,101,10,0.35);
-            border-radius: 2px;
-            font-size: 14px;
-            font-family: 'Courier New', monospace;
-            margin-bottom: 8px;
-            background: rgba(13,15,20,0.9);
-            color: var(--armor-white);
-        }
-
-        #panel-marksix .ticket-input:focus {
-            outline: none;
-            border-color: var(--gn-teal);
-            box-shadow: 0 0 0 2px rgba(0,212,204,0.2);
-        }
-
-        #panel-marksix .ticket-summary {
-            background: rgba(13,15,20,0.6);
-            padding: 10px;
-            border-radius: 2px;
-            border-left: 3px solid rgba(232,101,10,0.4);
-            font-size: 12px;
-            color: rgba(240,237,232,0.55);
-            line-height: 1.6;
-            margin-bottom: 8px;
-        }
-
-        #panel-marksix .ticket-summary.valid {
-            border-left-color: var(--gn-teal);
-            background: rgba(0,212,204,0.06);
-            color: rgba(0,212,204,0.8);
-        }
-
-        #panel-marksix .ticket-summary.invalid {
-            border-left-color: var(--cockpit-red);
-            background: rgba(192,57,43,0.08);
-            color: rgba(231,76,60,0.9);
-        }
-
+        #panel-marksix .ticket-input { width: 100%; padding: 10px; border: 1px solid rgba(232,101,10,0.35); border-radius: 2px; font-size: 14px; font-family: 'Courier New', monospace; margin-bottom: 8px; background: rgba(13,15,20,0.9); color: var(--armor-white); }
+        #panel-marksix .ticket-input:focus { outline: none; border-color: var(--gn-teal); box-shadow: 0 0 0 2px rgba(0,212,204,0.2); }
+        #panel-marksix .ticket-summary { background: rgba(13,15,20,0.6); padding: 10px; border-radius: 2px; border-left: 3px solid rgba(232,101,10,0.4); font-size: 12px; color: rgba(240,237,232,0.55); line-height: 1.6; margin-bottom: 8px; }
+        #panel-marksix .ticket-summary.valid { border-left-color: var(--gn-teal); background: rgba(0,212,204,0.06); color: rgba(0,212,204,0.8); }
+        #panel-marksix .ticket-summary.invalid { border-left-color: var(--cockpit-red); background: rgba(192,57,43,0.08); color: rgba(231,76,60,0.9); }
         #panel-marksix .summary-type { font-weight: bold; }
         #panel-marksix .summary-detail { margin-top: 5px; }
-
-        #panel-marksix .ticket-actions {
-            display: flex;
-            gap: 5px;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        #panel-marksix .ticket-delete-btn {
-            padding: 6px 12px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 12px;
-            cursor: pointer;
-            margin: 0;
-        }
-
+        #panel-marksix .ticket-actions { display: flex; gap: 5px; flex-direction: column; justify-content: center; }
+        #panel-marksix .ticket-delete-btn { padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; margin: 0; }
         #panel-marksix .ticket-delete-btn:hover { background: #c82333; }
-
-        #panel-marksix .ticket-expand-btn {
-            padding: 6px 12px;
-            background: #17a2b8;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 12px;
-            cursor: pointer;
-            margin: 0;
-        }
-
+        #panel-marksix .ticket-expand-btn { padding: 6px 12px; background: #17a2b8; color: white; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; margin: 0; }
         #panel-marksix .ticket-expand-btn:hover { background: #138496; }
-
-        #panel-marksix .ticket-combinations {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-            margin-top: 8px;
-            display: none;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
+        #panel-marksix .ticket-combinations { background: rgba(13,15,20,0.8); border: 1px solid rgba(232,101,10,0.2); border-radius: 5px; padding: 10px; margin-top: 8px; display: none; max-height: 300px; overflow-y: auto; }
         #panel-marksix .ticket-combinations.show { display: block; }
-
-        #panel-marksix .combination-item {
-            padding: 8px;
-            background: #f8f9fa;
-            border-radius: 3px;
-            margin-bottom: 5px;
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            color: #333;
-        }
-
+        #panel-marksix .combination-item { padding: 8px; background: rgba(13,15,20,0.7); border: 1px solid rgba(232,101,10,0.15); color: rgba(240,237,232,0.65); border-radius: 3px; margin-bottom: 5px; font-size: 12px; font-family: 'Courier New', monospace; }
         #panel-marksix .combination-item:last-child { margin-bottom: 0; }
-
-        #panel-marksix .add-ticket-btn {
-            padding: 12px 24px;
-            background: rgba(0,212,204,0.12);
-            color: var(--gn-teal);
-            border: 1px solid rgba(0,212,204,0.4) !important;
-            font-size: 13px;
-            margin-bottom: 20px;
-            width: 100%;
-            letter-spacing: 2px;
-            clip-path: none;
-            text-shadow: 0 0 8px var(--gn-teal-glow);
-        }
-        #panel-marksix .add-ticket-btn:hover {
-            background: rgba(0,212,204,0.22);
-            box-shadow: 0 0 20px rgba(0,212,204,0.25) !important;
-        }
-
-        #panel-marksix .total-summary {
-            background: linear-gradient(135deg, rgba(184,77,8,0.5) 0%, rgba(232,101,10,0.35) 100%);
-            border: 1px solid rgba(232,101,10,0.5);
-            border-radius: 3px;
-            padding: 20px;
-            color: var(--armor-white);
-            margin-bottom: 20px;
-            box-shadow: 0 4px 20px rgba(232,101,10,0.2);
-            animation: orangePulse 3s ease-in-out infinite;
-        }
-
-        #panel-marksix .total-summary-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 12px;
-        }
-
-        #panel-marksix .total-summary-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 15px;
-        }
-
+        #panel-marksix .add-ticket-btn { padding: 12px 24px; background: rgba(0,212,204,0.12); color: var(--gn-teal); border: 1px solid rgba(0,212,204,0.4) !important; font-size: 13px; margin-bottom: 20px; width: 100%; letter-spacing: 2px; clip-path: none; text-shadow: 0 0 8px var(--gn-teal-glow); }
+        #panel-marksix .add-ticket-btn:hover { background: rgba(0,212,204,0.22); box-shadow: 0 0 20px rgba(0,212,204,0.25) !important; }
+        #panel-marksix .total-summary { background: linear-gradient(135deg, rgba(184,77,8,0.5) 0%, rgba(232,101,10,0.35) 100%); border: 1px solid rgba(232,101,10,0.5); border-radius: 3px; padding: 20px; color: var(--armor-white); margin-bottom: 20px; box-shadow: 0 4px 20px rgba(232,101,10,0.2); animation: orangePulse 3s ease-in-out infinite; }
+        #panel-marksix .total-summary-title { font-size: 16px; font-weight: bold; margin-bottom: 12px; }
+        #panel-marksix .total-summary-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; }
         #panel-marksix .total-summary-label { opacity: 0.9; }
-
-        #panel-marksix .total-summary-value {
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        #panel-marksix .upload-area {
-            border: 1px dashed rgba(0,212,204,0.4);
-            border-radius: 3px;
-            padding: 30px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-bottom: 15px;
-            background: rgba(0,212,204,0.04);
-            color: rgba(240,237,232,0.5);
-        }
-
-        #panel-marksix .upload-area:hover {
-            border-color: var(--gn-teal);
-            background: rgba(0,212,204,0.08);
-            box-shadow: 0 0 20px rgba(0,212,204,0.1);
-        }
-
-        #panel-marksix .upload-area.dragover {
-            border-color: var(--primary);
-            background: rgba(232,101,10,0.08);
-        }
-
+        #panel-marksix .total-summary-value { font-weight: bold; font-size: 16px; }
+        #panel-marksix .upload-area { border: 1px dashed rgba(0,212,204,0.4); border-radius: 3px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.3s; margin-bottom: 15px; background: rgba(0,212,204,0.04); color: rgba(240,237,232,0.5); }
+        #panel-marksix .upload-area:hover { border-color: var(--gn-teal); background: rgba(0,212,204,0.08); box-shadow: 0 0 20px rgba(0,212,204,0.1); }
+        #panel-marksix .upload-area.dragover { border-color: var(--primary); background: rgba(232,101,10,0.08); }
         #panel-marksix #fileInput { display: none; }
-
-        #panel-marksix .preview-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-            margin: 15px 0;
-        }
-
+        #panel-marksix .preview-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 15px 0; }
         #panel-marksix .preview-item { position: relative; }
-
-        #panel-marksix .preview-image {
-            width: 100%;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 5px;
-            border: 2px solid #ddd;
-        }
-
+        #panel-marksix .preview-image { width: 100%; height: 150px; object-fit: cover; border-radius: 5px; border: 2px solid #ddd; }
         #panel-marksix .preview-image:hover { border-color: #667eea; }
-
-        #panel-marksix .remove-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            cursor: pointer;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-        }
-
+        #panel-marksix .remove-btn { position: absolute; top: 5px; right: 5px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; margin: 0; }
         #panel-marksix .remove-btn:hover { background: #c82333; }
-
-        #panel-marksix .ocr-status {
-            margin-top: 15px;
-            padding: 15px;
-            background: rgba(0,212,204,0.07);
-            border-left: 3px solid var(--gn-teal);
-            border-radius: 2px;
-            font-size: 13px;
-            color: rgba(240,237,232,0.7);
-            display: none;
-        }
+        #panel-marksix .ocr-status { margin-top: 15px; padding: 15px; background: rgba(0,212,204,0.07); border-left: 3px solid var(--gn-teal); border-radius: 2px; font-size: 13px; color: rgba(240,237,232,0.7); display: none; }
         #panel-marksix .ocr-status.show { display: block; }
         #panel-marksix .ocr-status.success { background: rgba(0,212,204,0.1); border-left-color: var(--gn-teal); color: var(--gn-teal); }
         #panel-marksix .ocr-status.error { background: rgba(192,57,43,0.1); border-left-color: var(--cockpit-red); color: #e74c3c; }
-
-        #panel-marksix .results {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(13,15,20,0.5);
-            border: 1px solid rgba(232,101,10,0.2);
-            border-radius: 3px;
-            display: none;
-        }
-
+        #panel-marksix .results { margin-top: 30px; padding: 20px; background: rgba(13,15,20,0.5); border: 1px solid rgba(232,101,10,0.2); border-radius: 3px; display: none; }
         #panel-marksix .results.show { display: block; }
-
-        #panel-marksix .summary-box {
-            padding: 20px;
-            background: linear-gradient(135deg, rgba(232,101,10,0.3) 0%, rgba(28,33,48,0.95) 60%, rgba(0,212,204,0.15) 100%);
-            border: 1px solid rgba(232,101,10,0.5);
-            border-radius: 4px;
-            color: var(--armor-white);
-            margin-bottom: 20px;
-            box-shadow: 0 8px 30px rgba(232,101,10,0.2);
-        }
-
-        #panel-marksix .summary-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        #panel-marksix .summary-content {
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-
-        #panel-marksix .summary-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 15px;
-        }
-
-        #panel-marksix .summary-warning {
-            font-size: 13px;
-            opacity: 0.9;
-            font-style: italic;
-            margin-top: 10px;
-        }
-
-        #panel-marksix .prize-breakdown {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        #panel-marksix .prize-item {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-        }
-
+        #panel-marksix .summary-box { padding: 20px; background: linear-gradient(135deg, rgba(232,101,10,0.3) 0%, rgba(28,33,48,0.95) 60%, rgba(0,212,204,0.15) 100%); border: 1px solid rgba(232,101,10,0.5); border-radius: 4px; color: var(--armor-white); margin-bottom: 20px; box-shadow: 0 8px 30px rgba(232,101,10,0.2); }
+        #panel-marksix .summary-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        #panel-marksix .summary-content { font-size: 16px; margin-bottom: 10px; }
+        #panel-marksix .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; }
+        #panel-marksix .summary-warning { font-size: 13px; opacity: 0.9; font-style: italic; margin-top: 10px; }
+        #panel-marksix .prize-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px; }
+        #panel-marksix .prize-item { background: rgba(255,255,255,0.2); padding: 10px; border-radius: 5px; text-align: center; }
         #panel-marksix .prize-level { font-size: 12px; opacity: 0.9; }
         #panel-marksix .prize-amount { font-size: 16px; font-weight: bold; }
-
-        #panel-marksix .result-item {
-            margin-bottom: 12px;
-            padding: 15px;
-            background: rgba(28,33,48,0.8);
-            border-left: 3px solid rgba(232,101,10,0.4);
-            border: 1px solid rgba(232,101,10,0.2);
-            border-left-width: 3px;
-            border-radius: 2px;
-            cursor: pointer;
-            transition: all 0.25s;
-            color: rgba(240,237,232,0.7);
-        }
-
-        #panel-marksix .result-item.winning {
-            border-left-color: var(--gn-teal);
-            background: rgba(0,212,204,0.07);
-            order: -1;
-            box-shadow: 0 0 20px rgba(0,212,204,0.1);
-            animation: gnPulse 3s ease-in-out infinite;
-        }
-
-        #panel-marksix .result-item.losing {
-            border-left-color: rgba(240,237,232,0.15);
-            background: rgba(13,15,20,0.5);
-            max-height: 50px;
-            overflow: hidden;
-        }
-
+        #panel-marksix .result-item { margin-bottom: 12px; padding: 15px; background: rgba(28,33,48,0.8); border-left: 3px solid rgba(232,101,10,0.4); border: 1px solid rgba(232,101,10,0.2); border-left-width: 3px; border-radius: 2px; cursor: pointer; transition: all 0.25s; color: rgba(240,237,232,0.7); }
+        #panel-marksix .result-item.winning { border-left-color: var(--gn-teal); background: rgba(0,212,204,0.07); order: -1; box-shadow: 0 0 20px rgba(0,212,204,0.1); animation: gnPulse 3s ease-in-out infinite; }
+        #panel-marksix .result-item.losing { border-left-color: rgba(240,237,232,0.15); background: rgba(13,15,20,0.5); max-height: 50px; overflow: hidden; }
         #panel-marksix .result-item.losing.expanded { max-height: none; }
-
         #panel-marksix .result-label { font-weight: bold; color: var(--armor-white); margin-bottom: 5px; letter-spacing: 0.5px; }
         #panel-marksix .result-status { font-size: 14px; margin-bottom: 5px; }
         #panel-marksix .winning .result-status { color: var(--gn-teal); text-shadow: 0 0 8px var(--gn-teal-glow); }
         #panel-marksix .losing .result-status { color: rgba(240,237,232,0.3); }
-
-        #panel-marksix .result-details {
-            font-size: 13px;
-            color: rgba(240,237,232,0.55);
-            margin-top: 8px;
-            padding: 8px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 2px;
-        }
-
+        #panel-marksix .result-details { font-size: 13px; color: rgba(240,237,232,0.55); margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 2px; }
         #panel-marksix .result-prize { font-size: 14px; color: var(--gn-teal); font-weight: bold; margin-top: 8px; text-shadow: 0 0 8px var(--gn-teal-glow); }
         #panel-marksix .result-cost { font-size: 12px; color: rgba(240,237,232,0.4); margin-top: 5px; }
         #panel-marksix .expand-toggle { font-size: 11px; color: rgba(232,101,10,0.6); margin-top: 5px; letter-spacing: 0.5px; }
-
         #panel-marksix .storage-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
         #panel-marksix .clear-btn { background: linear-gradient(135deg, rgba(139,22,15,0.8), rgba(192,57,43,0.8)) !important; border-color: rgba(192,57,43,0.6) !important; }
         #panel-marksix .clear-btn:hover { box-shadow: 0 0 16px rgba(192,57,43,0.5) !important; }
@@ -1026,189 +693,161 @@
         #panel-marksix .load-btn:hover { box-shadow: 0 0 16px rgba(30,100,180,0.4) !important; }
         #panel-marksix .share-btn { background: linear-gradient(135deg, rgba(180,120,0,0.8), rgba(212,160,23,0.8)) !important; border-color: rgba(212,160,23,0.6) !important; color: var(--frame-black) !important; }
         #panel-marksix .share-btn:hover { box-shadow: 0 0 16px rgba(212,160,23,0.4) !important; }
-
-        #panel-marksix .progress-bar {
-            width: 100%;
-            height: 3px;
-            background: rgba(240,237,232,0.1);
-            border-radius: 2px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-
-        #panel-marksix .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--gn-teal), var(--primary));
-            width: 0%;
-            transition: width 0.3s;
-            box-shadow: 0 0 8px var(--gn-teal-glow);
-        }
-
-        /* ─── 模態框（Celestial Being システムウィンドウ）─── */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(5,7,12,0.85);
-            backdrop-filter: blur(4px);
-        }
-
-        .modal.show {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background: linear-gradient(135deg, var(--gunmetal) 0%, var(--frame-black) 100%);
-            border: 1px solid rgba(232,101,10,0.5);
-            padding: 30px;
-            border-radius: 4px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 0 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(232,101,10,0.2);
-            clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px));
-            position: relative;
-        }
-        .modal-content::before {
-            content: '';
-            position: absolute;
-            top: 0; right: 0;
-            width: 60px; height: 60px;
-            background: linear-gradient(225deg, rgba(232,101,10,0.3) 0%, transparent 60%);
-            pointer-events: none;
-        }
-
-        .modal-title {
-            font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            color: var(--primary);
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px var(--primary-glow);
-            text-transform: uppercase;
-        }
-
-        .share-text-area {
-            width: 100%;
-            height: 300px;
-            padding: 15px;
-            border: 1px solid rgba(0,212,204,0.3);
-            border-radius: 2px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            resize: vertical;
-            margin-bottom: 15px;
-            background: rgba(13,15,20,0.9);
-            color: rgba(0,212,204,0.85);
-        }
-
-        .save-list {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-bottom: 15px;
-        }
-
-        .save-item {
-            padding: 10px;
-            background: rgba(13,15,20,0.7);
-            border: 1px solid rgba(232,101,10,0.25);
-            border-radius: 2px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .save-item-info { flex: 1; min-width: 150px; }
-        .save-item-name { font-weight: bold; color: var(--primary); }
-        .save-item-time { font-size: 12px; color: rgba(240,237,232,0.35); }
-        .save-item-buttons { display: flex; gap: 5px; margin-top: 8px; }
-
-        .save-item-btn {
-            padding: 5px 10px;
-            font-size: 12px;
-            margin: 0;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            color: white;
-            font-weight: bold;
-        }
-
-        .close-modal {
-            background: rgba(240,237,232,0.1);
-            padding: 8px 15px;
-            width: auto;
-            margin: 0;
-            border: 1px solid rgba(240,237,232,0.2) !important;
-            border-radius: 2px !important;
-            cursor: pointer;
-            color: rgba(240,237,232,0.6);
-            font-weight: bold;
-            font-size: 13px;
-            letter-spacing: 1px;
-            clip-path: none !important;
-        }
-        .close-modal:hover { background: rgba(240,237,232,0.18) !important; box-shadow: none !important; }
-
-        .copy-success {
-            display: none;
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(0,212,204,0.1);
-            border-left: 3px solid var(--gn-teal);
-            color: var(--gn-teal);
-            border-radius: 2px;
-            font-size: 13px;
-            text-shadow: 0 0 6px var(--gn-teal-glow);
-        }
-
-        .copy-success.show { display: block; }
-
-        /* ─── GN粒子エフェクト追加 ─── */
-        .gn-divider {
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--gn-teal), var(--primary), var(--gn-teal), transparent);
-            margin: 8px 0;
-            opacity: 0.4;
-        }
-
-        /* combination-item */
-        #panel-marksix .combination-item {
-            background: rgba(13,15,20,0.7);
-            border: 1px solid rgba(232,101,10,0.15);
-            color: rgba(240,237,232,0.65);
-        }
-
-        /* ticket-combinations */
-        #panel-marksix .ticket-combinations {
-            background: rgba(13,15,20,0.8);
-            border: 1px solid rgba(232,101,10,0.2);
-        }
-
-        /* save-list */
+        #panel-marksix .progress-bar { width: 100%; height: 3px; background: rgba(240,237,232,0.1); border-radius: 2px; overflow: hidden; margin: 10px 0; }
+        #panel-marksix .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gn-teal), var(--primary)); width: 0%; transition: width 0.3s; box-shadow: 0 0 8px var(--gn-teal-glow); }
+        .gn-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--gn-teal), var(--primary), var(--gn-teal), transparent); margin: 8px 0; opacity: 0.4; }
         .save-list { max-height: 300px; overflow-y: auto; margin-bottom: 15px; }
         .save-list::-webkit-scrollbar { width: 4px; }
         .save-list::-webkit-scrollbar-track { background: rgba(13,15,20,0.5); }
         .save-list::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
 
-        /* ─── 響應式 ─── */
+        /* MODALS */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(5,7,12,0.85); backdrop-filter: blur(4px); }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: linear-gradient(135deg, var(--gunmetal) 0%, var(--frame-black) 100%); border: 1px solid rgba(232,101,10,0.5); padding: 30px; border-radius: 4px; max-width: 500px; width: 90%; box-shadow: 0 0 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(232,101,10,0.2); clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px)); position: relative; }
+        .modal-content::before { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; background: linear-gradient(225deg, rgba(232,101,10,0.3) 0%, transparent 60%); pointer-events: none; }
+        .modal-title { font-family: 'Orbitron', 'Microsoft YaHei', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: var(--primary); margin-bottom: 20px; text-shadow: 0 0 10px var(--primary-glow); text-transform: uppercase; }
+        .share-text-area { width: 100%; height: 300px; padding: 15px; border: 1px solid rgba(0,212,204,0.3); border-radius: 2px; font-family: 'Courier New', monospace; font-size: 12px; resize: vertical; margin-bottom: 15px; background: rgba(13,15,20,0.9); color: rgba(0,212,204,0.85); }
+        .save-item { padding: 10px; background: rgba(13,15,20,0.7); border: 1px solid rgba(232,101,10,0.25); border-radius: 2px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .save-item-info { flex: 1; min-width: 150px; }
+        .save-item-name { font-weight: bold; color: var(--primary); }
+        .save-item-time { font-size: 12px; color: rgba(240,237,232,0.35); }
+        .save-item-buttons { display: flex; gap: 5px; margin-top: 8px; }
+        .save-item-btn { padding: 5px 10px; font-size: 12px; margin: 0; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
+        .close-modal { background: rgba(240,237,232,0.1); padding: 8px 15px; width: auto; margin: 0; border: 1px solid rgba(240,237,232,0.2) !important; border-radius: 2px !important; cursor: pointer; color: rgba(240,237,232,0.6); font-weight: bold; font-size: 13px; letter-spacing: 1px; clip-path: none !important; }
+        .close-modal:hover { background: rgba(240,237,232,0.18) !important; box-shadow: none !important; }
+        .copy-success { display: none; margin-top: 10px; padding: 10px; background: rgba(0,212,204,0.1); border-left: 3px solid var(--gn-teal); color: var(--gn-teal); border-radius: 2px; font-size: 13px; text-shadow: 0 0 6px var(--gn-teal-glow); }
+        .copy-success.show { display: block; }
+
+        /* RESPONSIVE */
         @media (max-width: 600px) {
             .home-hero h1 { font-size: 22px; letter-spacing: 2px; }
             .tools-grid { grid-template-columns: 1fr; }
             .tab-btn { padding: 0 14px; font-size: 10px; }
-            .harute-spec-bar { gap: 16px; padding: 12px 16px; }
+            .mhi-specs { gap: 12px; }
+            #mech-info-panel { max-width: 260px; bottom: 16px; left: 12px; }
+            .cb-logo-text { display: none; }
         }
     </style>
 </head>
-<body>
+<body class="theme-harute-ms">
+
+    <!-- ══ 背景浮水印機體圖層 ══ -->
+    <div id="mech-watermark">
+        <!-- 0: Kyrios MS -->
+        <div class="wm-slide" id="wm-0">
+            <img src="https://www.genspark.ai/api/files/s/7iCMT1wa?cache_control=3600" alt="Kyrios MS Form">
+        </div>
+        <!-- 1: Kyrios MA -->
+        <div class="wm-slide" id="wm-1">
+            <img src="https://www.genspark.ai/api/files/s/U24HLV3h?cache_control=3600" alt="Kyrios MA Form">
+        </div>
+        <!-- 2: Arios MS -->
+        <div class="wm-slide" id="wm-2">
+            <img src="https://www.genspark.ai/api/files/s/Feae2c24?cache_control=3600" alt="Arios MS Form">
+        </div>
+        <!-- 3: Arios MA -->
+        <div class="wm-slide" id="wm-3">
+            <img src="https://www.genspark.ai/api/files/s/kNB64mKW?cache_control=3600" alt="Arios MA Form">
+        </div>
+        <!-- 4: Harute MS -->
+        <div class="wm-slide active" id="wm-4">
+            <img src="https://www.genspark.ai/api/files/s/0u3JWvVF?cache_control=3600" alt="Harute MS Form">
+        </div>
+        <!-- 5: Harute MA -->
+        <div class="wm-slide" id="wm-5">
+            <img src="https://www.genspark.ai/api/files/s/A6qZBSYm?cache_control=3600" alt="Harute MA Form">
+        </div>
+    </div>
+
+    <!-- ══ 機體資訊面板（左下角）══ -->
+    <div id="mech-info-panel">
+        <!-- 0: Kyrios MS -->
+        <div class="mech-info-card" id="mic-0">
+            <div class="mic-model">GN-003 // MS FORM</div>
+            <div class="mic-name">GUNDAM <span>KYRIOS</span></div>
+            <div class="mic-form">MOBILE SUIT FORM · 人形形態</div>
+            <div class="mic-desc">機動戰士鋼彈00 第一季主役機體，由亞列路亞·哈普提斯姆駕駛。可變形為戰鬥機形態，具備高機動性能。裝備GN突擊步槍、GN手槍及GN護盾。</div>
+            <div class="mic-specs">
+                <div class="mic-spec-item"><div class="mic-spec-label">MODEL</div><div class="mic-spec-val">GN-003</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">HEIGHT</div><div class="mic-spec-val">18.3m</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">PILOT</div><div class="mic-spec-val">ALLELUJAH</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">SEASON</div><div class="mic-spec-val">S1</div></div>
+            </div>
+        </div>
+        <!-- 1: Kyrios MA -->
+        <div class="mech-info-card" id="mic-1">
+            <div class="mic-model">GN-003 // MA FORM</div>
+            <div class="mic-name">KYRIOS <span>FLIGHT FORM</span></div>
+            <div class="mic-form">MOBILE ARMOUR FORM · 飛行形態</div>
+            <div class="mic-desc">KYRIOS變形為高速戰鬥機形態，GN推進器全開輸出。機體下方可搭載GN Archer，配合瑪利露·蘇二人組合戰鬥。</div>
+            <div class="mic-specs">
+                <div class="mic-spec-item"><div class="mic-spec-label">MODE</div><div class="mic-spec-val">FLIGHT</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">SPEED</div><div class="mic-spec-val">HIGH</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">PARTNER</div><div class="mic-spec-val">GN ARCHER</div></div>
+            </div>
+        </div>
+        <!-- 2: Arios MS -->
+        <div class="mech-info-card" id="mic-2">
+            <div class="mic-model">GN-007 // MS FORM</div>
+            <div class="mic-name">ARIOS <span>GUNDAM</span></div>
+            <div class="mic-form">MOBILE SUIT FORM · 人形形態</div>
+            <div class="mic-desc">機動戰士鋼彈00 第二季機體，KYRIOS的後繼機。配備GN突擊步槍II、GN手刀及GN護盾II，繼承並強化前作的可變型設計。</div>
+            <div class="mic-specs">
+                <div class="mic-spec-item"><div class="mic-spec-label">MODEL</div><div class="mic-spec-val">GN-007</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">HEIGHT</div><div class="mic-spec-val">18.4m</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">PILOT</div><div class="mic-spec-val">ALLELUJAH</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">SEASON</div><div class="mic-spec-val">S2</div></div>
+            </div>
+        </div>
+        <!-- 3: Arios MA -->
+        <div class="mech-info-card" id="mic-3">
+            <div class="mic-model">GN-007 // MA FORM</div>
+            <div class="mic-name">ARIOS <span>FLIGHT FORM</span></div>
+            <div class="mic-form">MOBILE ARMOUR FORM · 飛行形態</div>
+            <div class="mic-desc">ARIOS的飛行形態兼具突擊與支援能力，大幅提升GN粒子推進效率。可與GN Archer合體為Archer Arios，發揮最大火力。</div>
+            <div class="mic-specs">
+                <div class="mic-spec-item"><div class="mic-spec-label">MODE</div><div class="mic-spec-val">FLIGHT</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">COMBINE</div><div class="mic-spec-val">ARCHER</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">POWER</div><div class="mic-spec-val">GN DRIVE</div></div>
+            </div>
+        </div>
+        <!-- 4: Harute MS -->
+        <div class="mech-info-card active" id="mic-4">
+            <div class="mic-model">GN-011 // MS FORM</div>
+            <div class="mic-name">GUNDAM <span>HARUTE</span></div>
+            <div class="mic-form">MOBILE SUIT FORM · 人形形態</div>
+            <div class="mic-desc">劇場版機體，由亞列路亞·哈普提斯姆與索馬·皮利斯共同駕駛。啟動「MARUTE模式」後，兩位超級士兵的戰鬥直覺合一，發揮最強戰力。</div>
+            <div class="mic-specs">
+                <div class="mic-spec-item"><div class="mic-spec-label">MODEL</div><div class="mic-spec-val">GN-011</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">HEIGHT</div><div class="mic-spec-val">19.0m</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">WEIGHT</div><div class="mic-spec-val">77.1t</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">MODE</div><div class="mic-spec-val">MARUTE</div></div>
+            </div>
+        </div>
+        <!-- 5: Harute MA -->
+        <div class="mech-info-card" id="mic-5">
+            <div class="mic-model">GN-011 // MA FORM</div>
+            <div class="mic-name">HARUTE <span>FLIGHT FORM</span></div>
+            <div class="mic-form">MOBILE ARMOUR FORM · 飛行形態</div>
+            <div class="mic-desc">HARUTE飛行形態將GN劍步槍展開為機翼，配合機體兩側GN加農炮形成強大火力網。TRANS-AM模式下可爆發式提升全機性能。</div>
+            <div class="mic-specs">
+                <div class="mic-spec-item"><div class="mic-spec-label">WEAPON</div><div class="mic-spec-val">GN SWORD</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">SYSTEM</div><div class="mic-spec-val">TRANS-AM</div></div>
+                <div class="mic-spec-item"><div class="mic-spec-label">BITS</div><div class="mic-spec-val">SCISSOR</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ 滾動指示點 ══ -->
+    <div id="mech-dots">
+        <div class="mech-dot" title="KYRIOS MS"></div>
+        <div class="mech-dot" title="KYRIOS MA"></div>
+        <div class="mech-dot" title="ARIOS MS"></div>
+        <div class="mech-dot" title="ARIOS MA"></div>
+        <div class="mech-dot active" title="HARUTE MS"></div>
+        <div class="mech-dot" title="HARUTE MA"></div>
+    </div>
 
     <!-- ══ 頂部導航欄 ══ -->
     <nav class="navbar">
@@ -1216,6 +855,31 @@
             GN-011
             <span class="gn-text">GUNDAM HARUTE</span>
             <span class="model-num">// CELESTIAL BEING</span>
+        </div>
+        <!-- Celestial Being Logo (右上角) -->
+        <div class="cb-logo-wrap">
+            <div class="cb-logo-text">CELESTIAL<br>BEING</div>
+            <!-- SVG: Celestial Being emblem (stylised eye / spear / halo) -->
+            <svg class="cb-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Outer ring -->
+                <circle cx="50" cy="50" r="46" fill="none" stroke="#D4A017" stroke-width="2" opacity="0.9"/>
+                <!-- Inner ring -->
+                <circle cx="50" cy="50" r="36" fill="none" stroke="#D4A017" stroke-width="1" opacity="0.5"/>
+                <!-- Vertical spear / diamond axis -->
+                <polygon points="50,4 55,50 50,96 45,50" fill="#D4A017" opacity="0.85"/>
+                <!-- Horizontal wings -->
+                <polygon points="4,50 50,44 96,50 50,56" fill="#D4A017" opacity="0.6"/>
+                <!-- Center circle -->
+                <circle cx="50" cy="50" r="8" fill="#D4A017" opacity="0.95"/>
+                <circle cx="50" cy="50" r="5" fill="#0D0F14"/>
+                <!-- GN glow dot -->
+                <circle cx="50" cy="50" r="2.5" fill="#00D4CC" opacity="0.9"/>
+                <!-- Corner ticks (clock positions) -->
+                <line x1="50" y1="4"  x2="50" y2="12"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
+                <line x1="50" y1="88" x2="50" y2="96"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
+                <line x1="4"  y1="50" x2="12" y2="50"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
+                <line x1="88" y1="50" x2="96" y2="50"  stroke="#D4A017" stroke-width="2" opacity="0.7"/>
+            </svg>
         </div>
     </nav>
 
@@ -1236,36 +900,100 @@
         <!-- ▸ 首頁面板 -->
         <div class="tab-panel active" id="panel-home">
             <div class="home-hero">
-                <div class="subtitle-jp">CELESTIAL BEING — MOBILE SUIT GN-011</div>
+                <div class="subtitle-jp">CELESTIAL BEING — ALLELUJAH HAPTISM UNIT HISTORY</div>
                 <h1>TOOLBOX</h1>
-                <p>點選上方分頁，或點擊下方工具卡片快速進入</p>
-                <div class="harute-spec-bar">
-                    <div class="spec-item">
-                        <div class="spec-label">MODEL</div>
-                        <div class="spec-value">GN-011</div>
+                <p>滾動頁面可切換背景機體展示　｜　點選下方工具卡片快速進入</p>
+
+                <!-- 動態機體簡介區（與浮水印同步切換）-->
+                <div class="mech-hero-info">
+                    <!-- 0: Kyrios MS -->
+                    <div class="mhi-slide" id="mhi-0">
+                        <div class="mhi-header">
+                            <span class="mhi-model">GN-003</span>
+                            <span class="mhi-name">KYRIOS</span>
+                            <span class="mhi-form">MS FORM</span>
+                        </div>
+                        <div class="mhi-desc">一期主役機，藍白配色，可高速可變形。裝備GN突擊步槍與GN手槍，由超級士兵亞列路亞駕駛出擊。</div>
+                        <div class="mhi-specs">
+                            <div class="mhi-spec"><div class="mhi-spec-l">MODEL</div><div class="mhi-spec-v">GN-003</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">HEIGHT</div><div class="mhi-spec-v">18.3m</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">PILOT</div><div class="mhi-spec-v">ALLELUJAH</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">SEASON</div><div class="mhi-spec-v">S1</div></div>
+                        </div>
                     </div>
-                    <div class="spec-item">
-                        <div class="spec-label">HEIGHT</div>
-                        <div class="spec-value">19.0m</div>
+                    <!-- 1: Kyrios MA -->
+                    <div class="mhi-slide" id="mhi-1">
+                        <div class="mhi-header">
+                            <span class="mhi-model">GN-003</span>
+                            <span class="mhi-name">KYRIOS</span>
+                            <span class="mhi-form">FLIGHT FORM</span>
+                        </div>
+                        <div class="mhi-desc">KYRIOS飛行形態，機身重組為高速噴射戰機。可搭載GN Archer與瑪利露協同作戰，突破高速戰場。</div>
+                        <div class="mhi-specs">
+                            <div class="mhi-spec"><div class="mhi-spec-l">MODE</div><div class="mhi-spec-v">MA FLIGHT</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">COMBO</div><div class="mhi-spec-v">GN ARCHER</div></div>
+                        </div>
                     </div>
-                    <div class="spec-item">
-                        <div class="spec-label">WEIGHT</div>
-                        <div class="spec-value">77.1t</div>
+                    <!-- 2: Arios MS -->
+                    <div class="mhi-slide" id="mhi-2">
+                        <div class="mhi-header">
+                            <span class="mhi-model">GN-007</span>
+                            <span class="mhi-name">ARIOS</span>
+                            <span class="mhi-form">MS FORM</span>
+                        </div>
+                        <div class="mhi-desc">二期後繼機，強化KYRIOS的可變設計。綠白配色，配備強化版GN突擊步槍II，機動性全面提升。</div>
+                        <div class="mhi-specs">
+                            <div class="mhi-spec"><div class="mhi-spec-l">MODEL</div><div class="mhi-spec-v">GN-007</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">HEIGHT</div><div class="mhi-spec-v">18.4m</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">PILOT</div><div class="mhi-spec-v">ALLELUJAH</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">SEASON</div><div class="mhi-spec-v">S2</div></div>
+                        </div>
                     </div>
-                    <div class="spec-item">
-                        <div class="spec-label">PILOT</div>
-                        <div class="spec-value">ALLELUJAH</div>
+                    <!-- 3: Arios MA -->
+                    <div class="mhi-slide" id="mhi-3">
+                        <div class="mhi-header">
+                            <span class="mhi-model">GN-007</span>
+                            <span class="mhi-name">ARIOS</span>
+                            <span class="mhi-form">FLIGHT FORM</span>
+                        </div>
+                        <div class="mhi-desc">ARIOS飛行形態，可與GN Archer合體變身Archer Arios，以壓倒性火力進行大範圍支援。</div>
+                        <div class="mhi-specs">
+                            <div class="mhi-spec"><div class="mhi-spec-l">MODE</div><div class="mhi-spec-v">MA FLIGHT</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">UNION</div><div class="mhi-spec-v">ARCHER ARIOS</div></div>
+                        </div>
                     </div>
-                    <div class="spec-item">
-                        <div class="spec-label">POWER</div>
-                        <div class="spec-value">GN DRIVE</div>
+                    <!-- 4: Harute MS -->
+                    <div class="mhi-slide active" id="mhi-4">
+                        <div class="mhi-header">
+                            <span class="mhi-model">GN-011</span>
+                            <span class="mhi-name">HARUTE</span>
+                            <span class="mhi-form">MS FORM</span>
+                        </div>
+                        <div class="mhi-desc">劇場版最終機體，亞列路亞與索馬雙駕駛。啟動MARUTE模式時超級士兵本能全開，達到機體性能極限。</div>
+                        <div class="mhi-specs">
+                            <div class="mhi-spec"><div class="mhi-spec-l">MODEL</div><div class="mhi-spec-v">GN-011</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">HEIGHT</div><div class="mhi-spec-v">19.0m</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">WEIGHT</div><div class="mhi-spec-v">77.1t</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">MODE</div><div class="mhi-spec-v">MARUTE</div></div>
+                        </div>
                     </div>
-                    <div class="spec-item">
-                        <div class="spec-label">MODE</div>
-                        <div class="spec-value">MARUTE</div>
+                    <!-- 5: Harute MA -->
+                    <div class="mhi-slide" id="mhi-5">
+                        <div class="mhi-header">
+                            <span class="mhi-model">GN-011</span>
+                            <span class="mhi-name">HARUTE</span>
+                            <span class="mhi-form">FLIGHT FORM</span>
+                        </div>
+                        <div class="mhi-desc">HARUTE飛行形態將GN劍步槍展開為機翼，搭配GN加農炮與GN剪刀Bit，TRANS-AM全開時爆發最強火力。</div>
+                        <div class="mhi-specs">
+                            <div class="mhi-spec"><div class="mhi-spec-l">WEAPON</div><div class="mhi-spec-v">GN SWORD</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">SYSTEM</div><div class="mhi-spec-v">TRANS-AM</div></div>
+                            <div class="mhi-spec"><div class="mhi-spec-l">BITS</div><div class="mhi-spec-v">SCISSOR</div></div>
+                        </div>
                     </div>
                 </div>
             </div>
+
             <div class="tools-grid">
                 <div class="tool-card" onclick="switchTabByName('marksix')">
                     <div class="tool-card-icon">🎰</div>
@@ -1278,12 +1006,14 @@
                 </div>
                 <!-- 未來新工具卡片加在這裡 -->
             </div>
+
+            <!-- 加高度讓滾動可觸發機體切換 -->
+            <div style="height: 200vh; pointer-events:none;"></div>
         </div>
 
         <!-- ▸ 六合彩核對面板 -->
         <div class="tab-panel" id="panel-marksix">
             <div class="container">
-                <!-- 開獎號碼設定 -->
                 <div class="card">
                     <h1>🎰 六合彩中獎核對</h1>
                     <p class="subtitle">// SINGLE · COMPLEX · DAN-TUO · BATCH OCR · SAVE · SHARE</p>
@@ -1304,33 +1034,23 @@
                     </div>
                 </div>
 
-                <!-- 輸入指南 -->
                 <div class="card">
                     <div class="input-guide-box">
                         <div class="input-guide-title">📝 輸入指南</div>
-                        <div class="input-guide-item">
-                            <strong>【單式】</strong> <span class="code">1,2,3,4,5,6</span> 或 <span class="code">1 2 3 4 5 6</span>
-                        </div>
-                        <div class="input-guide-item">
-                            <strong>【複式】</strong> <span class="code">1,2,3,4,5,6,7,8</span> （7個或以上號碼）
-                        </div>
-                        <div class="input-guide-item">
-                            <strong>【膽拖】</strong> <span class="code">1,2,3/4,5,6,7,8</span> （膽碼 / 拖碼）
-                        </div>
+                        <div class="input-guide-item"><strong>【單式】</strong> <span class="code">1,2,3,4,5,6</span> 或 <span class="code">1 2 3 4 5 6</span></div>
+                        <div class="input-guide-item"><strong>【複式】</strong> <span class="code">1,2,3,4,5,6,7,8</span> （7個或以上號碼）</div>
+                        <div class="input-guide-item"><strong>【膽拖】</strong> <span class="code">1,2,3/4,5,6,7,8</span> （膽碼 / 拖碼）</div>
                         <div class="input-guide-item" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.5); padding-top: 10px;">
                             <strong>【半注】</strong> 在末尾加 <span class="code">h</span> 表示半注（$5）：<span class="code">1,2,3,4,5,6 h</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- 注項輸入 -->
                 <div class="card">
                     <div class="section-title">第二步：輸入你的注項</div>
                     <div id="ticketsContainer" class="tickets-container"></div>
                     <button class="add-ticket-btn" onclick="addTicketInput()">+ 新增注項</button>
                     <div id="totalSummary"></div>
-
-                    <!-- OCR上傳 -->
                     <div class="input-group" style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #ddd;">
                         <label>或上傳圖片進行OCR識別</label>
                         <div class="upload-area" onclick="document.getElementById('fileInput').click()"
@@ -1347,7 +1067,6 @@
                             <div class="progress-fill" id="progressFill"></div>
                         </div>
                     </div>
-
                     <div class="storage-buttons" style="margin-top: 20px;">
                         <button onclick="checkNumbers()">✓ 核對中獎</button>
                         <button class="share-btn" id="shareBtn" onclick="openShareModal()" style="display: none;">📤 分享結果</button>
@@ -1357,7 +1076,6 @@
                     </div>
                 </div>
 
-                <!-- 結果顯示 -->
                 <div class="card">
                     <div id="results" class="results"></div>
                 </div>
@@ -1366,18 +1084,16 @@
 
     </div><!-- /main-content -->
 
-    <!-- ══ 模態框（分享）══ -->
+    <!-- ══ 模態框 ══ -->
     <div id="shareModal" class="modal">
         <div class="modal-content">
             <div class="modal-title">📤 複製分享文本</div>
             <textarea id="shareText" class="share-text-area" readonly></textarea>
             <div class="copy-success" id="copySuccess">✅ 已複製到剪貼板！</div>
-            <button onclick="copyToClipboard()" style="width: 100%; margin-bottom: 10px; border:none; border-radius:5px; background:#667eea; color:white; font-size:16px; font-weight:bold; padding:12px; cursor:pointer;">📋 複製全部</button>
+            <button onclick="copyToClipboard()" style="width:100%;margin-bottom:10px;border:none;border-radius:5px;background:#667eea;color:white;font-size:16px;font-weight:bold;padding:12px;cursor:pointer;">📋 複製全部</button>
             <button class="close-modal" onclick="closeShareModal()">關閉</button>
         </div>
     </div>
-
-    <!-- ══ 模態框（保存）══ -->
     <div id="saveModal" class="modal">
         <div class="modal-content">
             <div class="modal-title">保存注項</div>
@@ -1390,8 +1106,6 @@
             <button class="close-modal" onclick="closeSaveModal()">取消</button>
         </div>
     </div>
-
-    <!-- ══ 模態框（載入）══ -->
     <div id="loadModal" class="modal">
         <div class="modal-content">
             <div class="modal-title">已保存的注項</div>
@@ -1400,615 +1114,670 @@
         </div>
     </div>
 
-    <!-- ══ 外部庫 ══ -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5"></script>
-
     <script>
-        // ════════════════════════════════
-        //  分頁切換
-        // ════════════════════════════════
-        function switchTab(name, btn) {
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('panel-' + name).classList.add('active');
-            btn.classList.add('active');
+    // ══════════════════════════════════════════════════════════
+    //  MECH SCROLL WATERMARK + THEME SWITCHER
+    // ══════════════════════════════════════════════════════════
+    const MECHS = [
+        { id: 0, theme: 'theme-kyrios-ms',  primary: '#1A7AFF', secondary: '#00D4CC' },
+        { id: 1, theme: 'theme-kyrios-ma',  primary: '#1A7AFF', secondary: '#00D4CC' },
+        { id: 2, theme: 'theme-arios-ms',   primary: '#0DBF6F', secondary: '#A0E4C8' },
+        { id: 3, theme: 'theme-arios-ma',   primary: '#0DBF6F', secondary: '#A0E4C8' },
+        { id: 4, theme: 'theme-harute-ms',  primary: '#E8650A', secondary: '#00D4CC' },
+        { id: 5, theme: 'theme-harute-ma',  primary: '#E8650A', secondary: '#00D4CC' }
+    ];
+
+    let currentMech = 4; // start with Harute MS
+    let autoTimer = null;
+
+    function activateMech(idx) {
+        if (idx === currentMech) return;
+        currentMech = idx;
+
+        // Watermark slides
+        document.querySelectorAll('.wm-slide').forEach((el, i) => el.classList.toggle('active', i === idx));
+        // Mech info bottom-left
+        document.querySelectorAll('.mech-info-card').forEach((el, i) => el.classList.toggle('active', i === idx));
+        // Hero info (home panel)
+        document.querySelectorAll('.mhi-slide').forEach((el, i) => el.classList.toggle('active', i === idx));
+        // Dots
+        document.querySelectorAll('.mech-dot').forEach((el, i) => el.classList.toggle('active', i === idx));
+
+        // Theme class on body
+        const m = MECHS[idx];
+        document.body.className = m.theme;
+
+        // Dynamic CSS vars for mech-info-panel colours
+        document.documentElement.style.setProperty('--mech-primary', m.primary);
+        document.documentElement.style.setProperty('--mech-secondary', m.secondary);
+    }
+
+    // ── Scroll-driven switching (only on home panel) ──
+    function onScroll() {
+        const panel = document.getElementById('panel-home');
+        if (!panel || panel.style.display === 'none' || !panel.classList.contains('active')) return;
+
+        const scrollY = window.scrollY;
+        const docH = document.documentElement.scrollHeight - window.innerHeight;
+        if (docH <= 0) return;
+
+        // Map scroll 0→docH to mech index 0→5
+        const idx = Math.min(5, Math.floor((scrollY / docH) * 6));
+        activateMech(idx);
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // ── Auto-cycle when user is NOT on home panel (every 4s) ──
+    function startAutoCycle() {
+        stopAutoCycle();
+        autoTimer = setInterval(() => {
+            const panel = document.getElementById('panel-home');
+            if (panel && panel.classList.contains('active')) return; // skip if on home
+            activateMech((currentMech + 1) % 6);
+        }, 4000);
+    }
+    function stopAutoCycle() {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    }
+    startAutoCycle();
+
+    // ══════════════════════════════════════════════════════════
+    //  TAB SWITCHING
+    // ══════════════════════════════════════════════════════════
+    function switchTab(name, btn) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('panel-' + name).classList.add('active');
+        btn.classList.add('active');
+        // Reset scroll to top
+        window.scrollTo(0, 0);
+    }
+    function switchTabByName(name) {
+        const btn = [...document.querySelectorAll('.tab-btn')]
+            .find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'"));
+        if (btn) switchTab(name, btn);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  六合彩核對邏輯（原 marksixmatch.js 完整保留）
+    // ══════════════════════════════════════════════════════════
+    let drawingData = { regularNumbers: [], specialNumber: null };
+    let uploadedImages = [];
+    let ticketInputCount = 0;
+    let allTicketsData = {};
+    let lastResults = null;
+
+    const PRIZE_INFO = {
+        '1st': { name: '一等獎', matches: 6, special: false },
+        '2nd': { name: '二等獎', matches: 5, special: true },
+        '3rd': { name: '三等獎', matches: 5, special: false },
+        '4th': { name: '四等獎', matches: 4, special: true },
+        '5th': { name: '五等獎', matches: 4, special: false },
+        '6th': { name: '六等獎', matches: 3, special: true },
+        '7th': { name: '七等獎', matches: 3, special: false }
+    };
+    const FIXED_PRIZES = { '7th': 40, '6th': 320, '5th': 640, '4th': 9600 };
+
+    function initPage() { generateDrawingInputs(); }
+
+    function generateDrawingInputs() {
+        const container = document.getElementById('drawingInputs');
+        container.innerHTML = '';
+        for (let i = 1; i <= 6; i++) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'number-input-wrapper';
+            wrapper.innerHTML = `<label>號碼 ${i}</label>
+                <input type="number" class="drawing-input" min="1" max="49" placeholder="${i}">`;
+            container.appendChild(wrapper);
         }
+    }
 
-        function switchTabByName(name) {
-            const btn = [...document.querySelectorAll('.tab-btn')]
-                .find(b => b.getAttribute('onclick').includes("'" + name + "'"));
-            if (btn) switchTab(name, btn);
-        }
+    function setDrawingNumbers() {
+        const inputs = document.querySelectorAll('.drawing-input');
+        const numbers = Array.from(inputs).map(i => parseInt(i.value)).filter(n => !isNaN(n));
+        const special = parseInt(document.getElementById('specialInput').value);
+        if (numbers.length !== 6) { alert('請輸入6個有效的號碼'); return; }
+        if (isNaN(special) || special < 1 || special > 49) { alert('請輸入有效的特別號'); return; }
+        if (new Set(numbers).size !== 6) { alert('號碼不能重複'); return; }
+        drawingData.regularNumbers = numbers.sort((a, b) => a - b);
+        drawingData.specialNumber = special;
+        displayDrawingNumbers();
+        alert('開獎號碼已設定！');
+    }
 
-        // ════════════════════════════════
-        //  六合彩核對邏輯（原 marksixmatch.js）
-        // ════════════════════════════════
-        let drawingData = { regularNumbers: [], specialNumber: null };
-        let uploadedImages = [];
-        let ticketInputCount = 0;
-        let allTicketsData = {};
-        let lastResults = null;
+    function displayDrawingNumbers() {
+        const container = document.getElementById('drawingDisplay');
+        if (drawingData.regularNumbers.length === 0) { container.innerHTML = ''; return; }
+        let html = '<div style="margin-top:15px;"><strong>✅ 已設定的開獎號碼：</strong></div><div class="drawing-numbers">';
+        drawingData.regularNumbers.forEach(num => {
+            html += `<div class="number-ball">${String(num).padStart(2,'0')}</div>`;
+        });
+        html += `<div class="number-ball special">${String(drawingData.specialNumber).padStart(2,'0')}</div></div>`;
+        container.innerHTML = html;
+    }
 
-        const PRIZE_INFO = {
-            '1st': { name: '一等獎', matches: 6, special: false },
-            '2nd': { name: '二等獎', matches: 5, special: true },
-            '3rd': { name: '三等獎', matches: 5, special: false },
-            '4th': { name: '四等獎', matches: 4, special: true },
-            '5th': { name: '五等獎', matches: 4, special: false },
-            '6th': { name: '六等獎', matches: 3, special: true },
-            '7th': { name: '七等獎', matches: 3, special: false }
-        };
+    function clearDrawing() {
+        drawingData = { regularNumbers: [], specialNumber: null };
+        document.getElementById('drawingDisplay').innerHTML = '';
+        generateDrawingInputs();
+    }
 
-        const FIXED_PRIZES = { '7th': 40, '6th': 320, '5th': 640, '4th': 9600 };
-
-        function initPage() { generateDrawingInputs(); }
-
-        function generateDrawingInputs() {
-            const container = document.getElementById('drawingInputs');
-            container.innerHTML = '';
-            for (let i = 1; i <= 6; i++) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'number-input-wrapper';
-                wrapper.innerHTML = `<label>號碼 ${i}</label>
-                    <input type="number" class="drawing-input" min="1" max="49" placeholder="${i}">`;
-                container.appendChild(wrapper);
-            }
-        }
-
-        function setDrawingNumbers() {
-            const inputs = document.querySelectorAll('.drawing-input');
-            const numbers = Array.from(inputs).map(i => parseInt(i.value)).filter(n => !isNaN(n));
-            const special = parseInt(document.getElementById('specialInput').value);
-            if (numbers.length !== 6) { alert('請輸入6個有效的號碼'); return; }
-            if (isNaN(special) || special < 1 || special > 49) { alert('請輸入有效的特別號'); return; }
-            if (new Set(numbers).size !== 6) { alert('號碼不能重複'); return; }
-            drawingData.regularNumbers = numbers.sort((a, b) => a - b);
-            drawingData.specialNumber = special;
-            displayDrawingNumbers();
-            alert('開獎號碼已設定！');
-        }
-
-        function displayDrawingNumbers() {
-            const container = document.getElementById('drawingDisplay');
-            if (drawingData.regularNumbers.length === 0) { container.innerHTML = ''; return; }
-            let html = '<div style="margin-top: 15px;"><strong>✅ 已設定的開獎號碼：</strong></div><div class="drawing-numbers">';
-            drawingData.regularNumbers.forEach(num => {
-                html += `<div class="number-ball">${String(num).padStart(2,'0')}</div>`;
-            });
-            html += `<div class="number-ball special">${String(drawingData.specialNumber).padStart(2,'0')}</div></div>`;
-            container.innerHTML = html;
-        }
-
-        function clearDrawing() {
-            drawingData = { regularNumbers: [], specialNumber: null };
-            document.getElementById('drawingDisplay').innerHTML = '';
-            generateDrawingInputs();
-        }
-
-        function addTicketInput() {
-            const ticketId = ++ticketInputCount;
-            const container = document.getElementById('ticketsContainer');
-            const ticketItem = document.createElement('div');
-            ticketItem.className = 'ticket-item';
-            ticketItem.id = `ticket-${ticketId}`;
-            ticketItem.innerHTML = `
-                <div class="ticket-item-number">${ticketId}</div>
-                <div class="ticket-item-content">
-                    <input type="text" class="ticket-input" id="input-${ticketId}"
-                           placeholder="輸入注項（如：1,2,3,4,5,6 或 1,2,3/4,5,6,7,8）"
-                           oninput="analyzeTicket(${ticketId})">
-                    <div class="ticket-summary" id="summary-${ticketId}">
-                        <div style="color: #999;">等待輸入...</div>
-                    </div>
-                    <div class="ticket-combinations" id="combinations-${ticketId}"></div>
+    function addTicketInput() {
+        const ticketId = ++ticketInputCount;
+        const container = document.getElementById('ticketsContainer');
+        const ticketItem = document.createElement('div');
+        ticketItem.className = 'ticket-item';
+        ticketItem.id = `ticket-${ticketId}`;
+        ticketItem.innerHTML = `
+            <div class="ticket-item-number">${ticketId}</div>
+            <div class="ticket-item-content">
+                <input type="text" class="ticket-input" id="input-${ticketId}"
+                       placeholder="輸入注項（如：1,2,3,4,5,6 或 1,2,3/4,5,6,7,8）"
+                       oninput="analyzeTicket(${ticketId})">
+                <div class="ticket-summary" id="summary-${ticketId}">
+                    <div style="color:#999;">等待輸入...</div>
                 </div>
-                <div class="ticket-actions">
-                    <button class="ticket-expand-btn" id="expand-btn-${ticketId}"
-                            onclick="toggleCombinations(${ticketId})" style="display: none;">展開組合</button>
-                    <button class="ticket-delete-btn" onclick="deleteTicket(${ticketId})">刪除</button>
-                </div>`;
-            container.appendChild(ticketItem);
+                <div class="ticket-combinations" id="combinations-${ticketId}"></div>
+            </div>
+            <div class="ticket-actions">
+                <button class="ticket-expand-btn" id="expand-btn-${ticketId}"
+                        onclick="toggleCombinations(${ticketId})" style="display:none;">展開組合</button>
+                <button class="ticket-delete-btn" onclick="deleteTicket(${ticketId})">刪除</button>
+            </div>`;
+        container.appendChild(ticketItem);
+        allTicketsData[ticketId] = null;
+        document.getElementById(`input-${ticketId}`).focus();
+    }
+
+    function deleteTicket(ticketId) {
+        const el = document.getElementById(`ticket-${ticketId}`);
+        if (el) el.remove();
+        delete allTicketsData[ticketId];
+        updateTotalSummary();
+    }
+
+    function toggleCombinations(ticketId) {
+        document.getElementById(`combinations-${ticketId}`).classList.toggle('show');
+    }
+
+    function analyzeTicket(ticketId) {
+        const input = document.getElementById(`input-${ticketId}`).value;
+        const summary = document.getElementById(`summary-${ticketId}`);
+        const expandBtn = document.getElementById(`expand-btn-${ticketId}`);
+        const combinationsDiv = document.getElementById(`combinations-${ticketId}`);
+        if (!input.trim()) {
+            summary.innerHTML = '<div style="color:#999;">等待輸入...</div>';
+            summary.className = 'ticket-summary';
+            expandBtn.style.display = 'none';
             allTicketsData[ticketId] = null;
-            document.getElementById(`input-${ticketId}`).focus();
-        }
-
-        function deleteTicket(ticketId) {
-            const el = document.getElementById(`ticket-${ticketId}`);
-            if (el) el.remove();
-            delete allTicketsData[ticketId];
             updateTotalSummary();
+            return;
         }
-
-        function toggleCombinations(ticketId) {
-            document.getElementById(`combinations-${ticketId}`).classList.toggle('show');
-        }
-
-        function analyzeTicket(ticketId) {
-            const input = document.getElementById(`input-${ticketId}`).value;
-            const summary = document.getElementById(`summary-${ticketId}`);
-            const expandBtn = document.getElementById(`expand-btn-${ticketId}`);
-            const combinationsDiv = document.getElementById(`combinations-${ticketId}`);
-            if (!input.trim()) {
-                summary.innerHTML = '<div style="color: #999;">等待輸入...</div>';
-                summary.className = 'ticket-summary';
-                expandBtn.style.display = 'none';
-                allTicketsData[ticketId] = null;
-                updateTotalSummary();
-                return;
-            }
-            const result = analyzeLine(input);
-            if (result) {
-                allTicketsData[ticketId] = result;
-                summary.className = 'ticket-summary valid';
-                summary.innerHTML = `<div class="summary-type">${result.typeLabel}</div>
-                    <div class="summary-detail">${result.count}注 × $${result.unitCost} = $${result.totalCost}</div>`;
-                if (result.type === 'complex' || result.type === 'danTuo') {
-                    expandBtn.style.display = 'block';
-                    displayCombinations(ticketId, result.tickets);
-                } else {
-                    expandBtn.style.display = 'none';
-                }
-                combinationsDiv.classList.remove('show');
+        const result = analyzeLine(input);
+        if (result) {
+            allTicketsData[ticketId] = result;
+            summary.className = 'ticket-summary valid';
+            summary.innerHTML = `<div class="summary-type">${result.typeLabel}</div>
+                <div class="summary-detail">${result.count}注 × $${result.unitCost} = $${result.totalCost}</div>`;
+            if (result.type === 'complex' || result.type === 'danTuo') {
+                expandBtn.style.display = 'block';
+                displayCombinations(ticketId, result.tickets);
             } else {
-                allTicketsData[ticketId] = null;
-                summary.className = 'ticket-summary invalid';
-                summary.innerHTML = '<div>❌ 格式不正確</div>';
                 expandBtn.style.display = 'none';
             }
-            updateTotalSummary();
+            combinationsDiv.classList.remove('show');
+        } else {
+            allTicketsData[ticketId] = null;
+            summary.className = 'ticket-summary invalid';
+            summary.innerHTML = '<div>❌ 格式不正確</div>';
+            expandBtn.style.display = 'none';
         }
+        updateTotalSummary();
+    }
 
-        function displayCombinations(ticketId, tickets) {
-            const div = document.getElementById(`combinations-${ticketId}`);
-            div.innerHTML = '';
-            const title = document.createElement('div');
-            title.style.cssText = 'font-size:12px;font-weight:bold;margin-bottom:8px;color:#333';
-            title.textContent = `共 ${tickets.length} 個組合：`;
-            div.appendChild(title);
-            tickets.forEach((ticket, idx) => {
-                const item = document.createElement('div');
-                item.className = 'combination-item';
-                item.textContent = `${idx + 1}. ${ticket.join(', ')}`;
-                div.appendChild(item);
-            });
-        }
+    function displayCombinations(ticketId, tickets) {
+        const div = document.getElementById(`combinations-${ticketId}`);
+        div.innerHTML = '';
+        const title = document.createElement('div');
+        title.style.cssText = 'font-size:12px;font-weight:bold;margin-bottom:8px;color:#aaa';
+        title.textContent = `共 ${tickets.length} 個組合：`;
+        div.appendChild(title);
+        tickets.forEach((ticket, idx) => {
+            const item = document.createElement('div');
+            item.className = 'combination-item';
+            item.textContent = `${idx + 1}. ${ticket.join(', ')}`;
+            div.appendChild(item);
+        });
+    }
 
-        function analyzeLine(line) {
-            line = line.trim();
-            const isHalf = line.toLowerCase().includes(' h');
-            const cleanLine = line.replace(/\s+h\s*$/i, '').trim();
-            if (cleanLine.includes('/')) {
-                const parts = cleanLine.split('/');
-                const dan = extractNumbers(parts[0]);
-                const tuo = extractNumbers(parts[1]);
-                if (dan.length > 0 && dan.length <= 5 && tuo.length > 0) {
-                    const tickets = generateDanTuoTickets(dan, tuo);
-                    const count = tickets.length;
-                    return {
-                        type: 'danTuo',
-                        typeLabel: `膽拖 (膽:${dan.length}個, 拖:${tuo.length}個)`,
-                        tickets, count: isHalf ? count / 2 : count,
-                        unitCost: isHalf ? 5 : 10,
-                        totalCost: isHalf ? count * 5 : count * 10,
-                        isHalf
-                    };
-                }
-            }
-            const numbers = extractNumbers(cleanLine);
-            if (numbers.length === 6) {
-                const unitCost = isHalf ? 5 : 10;
-                return { type: 'single', typeLabel: '單式', tickets: [numbers],
-                    count: isHalf ? 0.5 : 1, unitCost, totalCost: unitCost, isHalf };
-            } else if (numbers.length >= 7) {
-                const tickets = generateComplexTickets(numbers);
+    function analyzeLine(line) {
+        line = line.trim();
+        const isHalf = line.toLowerCase().includes(' h');
+        const cleanLine = line.replace(/\s+h\s*$/i, '').trim();
+        if (cleanLine.includes('/')) {
+            const parts = cleanLine.split('/');
+            const dan = extractNumbers(parts[0]);
+            const tuo = extractNumbers(parts[1]);
+            if (dan.length > 0 && dan.length <= 5 && tuo.length > 0) {
+                const tickets = generateDanTuoTickets(dan, tuo);
                 const count = tickets.length;
                 return {
-                    type: 'complex', typeLabel: `複式 (${numbers.length}個號)`,
+                    type: 'danTuo',
+                    typeLabel: `膽拖 (膽:${dan.length}個, 拖:${tuo.length}個)`,
                     tickets, count: isHalf ? count / 2 : count,
                     unitCost: isHalf ? 5 : 10,
                     totalCost: isHalf ? count * 5 : count * 10,
                     isHalf
                 };
             }
-            return null;
         }
-
-        function extractNumbers(text) {
-            const matches = text.match(/\d+/g);
-            if (!matches) return [];
-            return [...new Set(matches.map(m => parseInt(m)).filter(n => n > 0 && n <= 49))].sort((a,b)=>a-b);
-        }
-
-        function generateComplexTickets(numbers) {
-            const tickets = [];
-            function combine(arr, n, start=0, cur=[]) {
-                if (cur.length === n) { tickets.push([...cur]); return; }
-                for (let i = start; i < arr.length; i++) {
-                    cur.push(arr[i]); combine(arr, n, i+1, cur); cur.pop();
-                }
-            }
-            combine(numbers, 6);
-            return tickets;
-        }
-
-        function generateDanTuoTickets(dan, tuo) {
-            tuo = tuo.filter(n => !dan.includes(n));
-            const needFromTuo = 6 - dan.length;
-            if (tuo.length < needFromTuo) return [];
-            const tickets = [];
-            function combine(arr, n, start=0, cur=[]) {
-                if (cur.length === n) { tickets.push([...dan, ...cur].sort((a,b)=>a-b)); return; }
-                for (let i = start; i < arr.length; i++) {
-                    cur.push(arr[i]); combine(arr, n, i+1, cur); cur.pop();
-                }
-            }
-            combine(tuo, needFromTuo);
-            return tickets;
-        }
-
-        function updateTotalSummary() {
-            const container = document.getElementById('totalSummary');
-            let totalTickets = 0, totalCost = 0;
-            Object.values(allTicketsData).forEach(d => {
-                if (d) { totalTickets += d.count; totalCost += d.totalCost; }
-            });
-            if (totalTickets === 0) { container.innerHTML = ''; return; }
-            container.innerHTML = `
-                <div class="total-summary">
-                    <div class="total-summary-title">📊 注項統計</div>
-                    <div class="total-summary-item">
-                        <span class="total-summary-label">總注數：</span>
-                        <span class="total-summary-value">${totalTickets}</span>
-                    </div>
-                    <div class="total-summary-item">
-                        <span class="total-summary-label">總費用：</span>
-                        <span class="total-summary-value">$${totalCost}</span>
-                    </div>
-                </div>`;
-        }
-
-        function handleMultipleImages(event) {
-            for (let file of event.target.files) {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    uploadedImages.push({ data: e.target.result, name: file.name });
-                    displayPreviewImages();
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function displayPreviewImages() {
-            const container = document.getElementById('previewContainer');
-            container.innerHTML = '';
-            uploadedImages.forEach((img, index) => {
-                const item = document.createElement('div');
-                item.className = 'preview-item';
-                item.innerHTML = `<img src="${img.data}" class="preview-image" alt="preview">
-                    <button class="remove-btn" onclick="removeImage(${index})">✕</button>`;
-                container.appendChild(item);
-            });
-            document.getElementById('ocrBtn').style.display = uploadedImages.length > 0 ? 'block' : 'none';
-        }
-
-        function removeImage(index) {
-            uploadedImages.splice(index, 1);
-            displayPreviewImages();
-        }
-
-        function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('dragover'); }
-        function handleDragLeave(event) { event.currentTarget.classList.remove('dragover'); }
-        function handleDrop(event) {
-            event.preventDefault();
-            event.currentTarget.classList.remove('dragover');
-            const files = event.dataTransfer.files;
-            if (files.length > 0) handleMultipleImages({ target: { files } });
-        }
-
-        async function performBatchOCR() {
-            if (uploadedImages.length === 0) { alert('請先上傳圖片'); return; }
-            const statusDiv = document.getElementById('ocrStatus');
-            const progressBar = document.getElementById('progressBar');
-            const progressFill = document.getElementById('progressFill');
-            statusDiv.classList.add('show');
-            statusDiv.classList.remove('error');
-            progressBar.style.display = 'block';
-            let allOcrTickets = [];
-            for (let i = 0; i < uploadedImages.length; i++) {
-                statusDiv.textContent = `⏳ 正在識別圖片 ${i+1}/${uploadedImages.length}...`;
-                progressFill.style.width = ((i / uploadedImages.length) * 100) + '%';
-                try {
-                    const result = await Tesseract.recognize(uploadedImages[i].data, 'chi_sim+eng');
-                    allOcrTickets.push(...extractTicketsFromOCR(result.data.text));
-                } catch {
-                    statusDiv.textContent = `❌ 圖片 ${i+1} 識別失敗`;
-                    statusDiv.classList.add('error');
-                }
-            }
-            progressFill.style.width = '100%';
-            statusDiv.textContent = `✅ 識別完成！共識別 ${allOcrTickets.length} 個注項`;
-            statusDiv.classList.add('success');
-            allOcrTickets.forEach(ticket => {
-                addTicketInput();
-                document.getElementById(`input-${ticketInputCount}`).value = ticket.join(',');
-                analyzeTicket(ticketInputCount);
-            });
-            setTimeout(() => { progressBar.style.display = 'none'; }, 2000);
-        }
-
-        function extractTicketsFromOCR(text) {
-            const tickets = [];
-            for (let line of text.split('\n')) {
-                line = line.replace(/^\d+\/\d+\s*期\s*/, '').replace(/\s*\(.*?\)\s*\$.*$/gi, '').replace(/\s*\(.*$/gi, '');
-                const numbers = extractNumbers(line);
-                if (numbers.length === 6) tickets.push(numbers);
-            }
-            return tickets;
-        }
-
-        function checkNumbers() {
-            if (drawingData.regularNumbers.length === 0) { alert('請先設定開獎號碼'); return; }
-            const validTickets = Object.values(allTicketsData).filter(t => t !== null);
-            if (validTickets.length === 0) { alert('請輸入注項'); return; }
-            const results = [];
-            let totalTicketCount = 0, totalCost = 0;
-            validTickets.forEach(ticketInfo => {
-                ticketInfo.tickets.forEach(ticket => {
-                    results.push({ ...checkWinning(ticket), cost: ticketInfo.totalCost / ticketInfo.count, isHalf: ticketInfo.isHalf });
-                });
-                totalTicketCount += ticketInfo.count;
-                totalCost += ticketInfo.totalCost;
-            });
-            lastResults = { results, totalCost, totalTicketCount };
-            document.getElementById('shareBtn').style.display = 'block';
-            displayResults(results, totalCost, totalTicketCount);
-        }
-
-        function checkWinning(userTicket) {
-            const regularSet = new Set(drawingData.regularNumbers);
-            const userSet = new Set(userTicket);
-            let matchCount = 0;
-            userTicket.forEach(n => { if (regularSet.has(n)) matchCount++; });
-            const hasSpecial = userSet.has(drawingData.specialNumber);
-            let prizeKey = null, isPrize = false;
-            if (matchCount === 6) { prizeKey = '1st'; isPrize = true; }
-            else if (matchCount === 5 && hasSpecial) { prizeKey = '2nd'; isPrize = true; }
-            else if (matchCount === 5) { prizeKey = '3rd'; isPrize = true; }
-            else if (matchCount === 4 && hasSpecial) { prizeKey = '4th'; isPrize = true; }
-            else if (matchCount === 4) { prizeKey = '5th'; isPrize = true; }
-            else if (matchCount === 3 && hasSpecial) { prizeKey = '6th'; isPrize = true; }
-            else if (matchCount === 3) { prizeKey = '7th'; isPrize = true; }
-            const prizeInfo = prizeKey ? PRIZE_INFO[prizeKey] : null;
+        const numbers = extractNumbers(cleanLine);
+        if (numbers.length === 6) {
+            const unitCost = isHalf ? 5 : 10;
+            return { type: 'single', typeLabel: '單式', tickets: [numbers],
+                count: isHalf ? 0.5 : 1, unitCost, totalCost: unitCost, isHalf };
+        } else if (numbers.length >= 7) {
+            const tickets = generateComplexTickets(numbers);
+            const count = tickets.length;
             return {
-                numbers: userTicket, matches: matchCount, hasSpecial,
-                prizeLevel: prizeInfo ? prizeInfo.name : '未中獎',
-                prizeKey, prizeAmount: prizeKey && FIXED_PRIZES[prizeKey] ? FIXED_PRIZES[prizeKey] : null,
-                isPrize
+                type: 'complex', typeLabel: `複式 (${numbers.length}個號)`,
+                tickets, count: isHalf ? count / 2 : count,
+                unitCost: isHalf ? 5 : 10,
+                totalCost: isHalf ? count * 5 : count * 10,
+                isHalf
             };
         }
+        return null;
+    }
 
-        function displayResults(results, totalCost, totalTicketCount) {
-            const resultsDiv = document.getElementById('results');
-            const winningResults = results.filter(r => r.isPrize).sort((a,b) => {
-                const ord = { '1st':0,'2nd':1,'3rd':2,'4th':3,'5th':4,'6th':5,'7th':6 };
-                return ord[a.prizeKey] - ord[b.prizeKey];
-            });
-            const losingResults = results.filter(r => !r.isPrize);
-            const prizeStats = {};
-            let totalWinnings = 0;
-            winningResults.forEach(r => {
-                prizeStats[r.prizeKey] = (prizeStats[r.prizeKey] || 0) + 1;
-                if (r.prizeAmount) totalWinnings += r.prizeAmount;
-            });
-            let html = '<div class="summary-box">';
-            html += '<div class="summary-title">💰 中獎總金額</div>';
-            if (totalWinnings > 0) html += `<div class="summary-content"><strong>確定獲利: $${totalWinnings.toLocaleString()}</strong></div>`;
-            const variablePrizes = ['1st','2nd','3rd'];
-            const variablePrizeCount = Object.keys(prizeStats).filter(k => variablePrizes.includes(k)).length;
-            if (variablePrizeCount > 0) {
-                html += '<div class="summary-warning">⚠️ 部分獎項金額待定：';
-                if (prizeStats['1st']) html += ` 一等獎 ${prizeStats['1st']}注`;
-                if (prizeStats['2nd']) html += ` 二等獎 ${prizeStats['2nd']}注`;
-                if (prizeStats['3rd']) html += ` 三等獎 ${prizeStats['3rd']}注`;
-                html += '，需等待官方公佈</div>';
+    function extractNumbers(text) {
+        const matches = text.match(/\d+/g);
+        if (!matches) return [];
+        return [...new Set(matches.map(m => parseInt(m)).filter(n => n > 0 && n <= 49))].sort((a,b)=>a-b);
+    }
+
+    function generateComplexTickets(numbers) {
+        const tickets = [];
+        function combine(arr, n, start=0, cur=[]) {
+            if (cur.length === n) { tickets.push([...cur]); return; }
+            for (let i = start; i < arr.length; i++) { cur.push(arr[i]); combine(arr,n,i+1,cur); cur.pop(); }
+        }
+        combine(numbers, 6);
+        return tickets;
+    }
+
+    function generateDanTuoTickets(dan, tuo) {
+        tuo = tuo.filter(n => !dan.includes(n));
+        const needFromTuo = 6 - dan.length;
+        if (tuo.length < needFromTuo) return [];
+        const tickets = [];
+        function combine(arr, n, start=0, cur=[]) {
+            if (cur.length === n) { tickets.push([...dan, ...cur].sort((a,b)=>a-b)); return; }
+            for (let i = start; i < arr.length; i++) { cur.push(arr[i]); combine(arr,n,i+1,cur); cur.pop(); }
+        }
+        combine(tuo, needFromTuo);
+        return tickets;
+    }
+
+    function updateTotalSummary() {
+        const container = document.getElementById('totalSummary');
+        let totalTickets = 0, totalCost = 0;
+        Object.values(allTicketsData).forEach(d => { if (d) { totalTickets += d.count; totalCost += d.totalCost; } });
+        if (totalTickets === 0) { container.innerHTML = ''; return; }
+        container.innerHTML = `
+            <div class="total-summary">
+                <div class="total-summary-title">📊 注項統計</div>
+                <div class="total-summary-item">
+                    <span class="total-summary-label">總注數：</span>
+                    <span class="total-summary-value">${totalTickets}</span>
+                </div>
+                <div class="total-summary-item">
+                    <span class="total-summary-label">總費用：</span>
+                    <span class="total-summary-value">$${totalCost}</span>
+                </div>
+            </div>`;
+    }
+
+    function handleMultipleImages(event) {
+        for (let file of event.target.files) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                uploadedImages.push({ data: e.target.result, name: file.name });
+                displayPreviewImages();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function displayPreviewImages() {
+        const container = document.getElementById('previewContainer');
+        container.innerHTML = '';
+        uploadedImages.forEach((img, index) => {
+            const item = document.createElement('div');
+            item.className = 'preview-item';
+            item.innerHTML = `<img src="${img.data}" class="preview-image" alt="preview">
+                <button class="remove-btn" onclick="removeImage(${index})">✕</button>`;
+            container.appendChild(item);
+        });
+        document.getElementById('ocrBtn').style.display = uploadedImages.length > 0 ? 'block' : 'none';
+    }
+
+    function removeImage(index) { uploadedImages.splice(index, 1); displayPreviewImages(); }
+
+    function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('dragover'); }
+    function handleDragLeave(event) { event.currentTarget.classList.remove('dragover'); }
+    function handleDrop(event) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('dragover');
+        const files = event.dataTransfer.files;
+        if (files.length > 0) handleMultipleImages({ target: { files } });
+    }
+
+    async function performBatchOCR() {
+        if (uploadedImages.length === 0) { alert('請先上傳圖片'); return; }
+        const statusDiv = document.getElementById('ocrStatus');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        statusDiv.classList.add('show');
+        statusDiv.classList.remove('error');
+        progressBar.style.display = 'block';
+        let allOcrTickets = [];
+        for (let i = 0; i < uploadedImages.length; i++) {
+            statusDiv.textContent = `⏳ 正在識別圖片 ${i+1}/${uploadedImages.length}...`;
+            progressFill.style.width = ((i / uploadedImages.length) * 100) + '%';
+            try {
+                const result = await Tesseract.recognize(uploadedImages[i].data, 'chi_sim+eng');
+                allOcrTickets.push(...extractTicketsFromOCR(result.data.text));
+            } catch {
+                statusDiv.textContent = `❌ 圖片 ${i+1} 識別失敗`;
+                statusDiv.classList.add('error');
             }
-            html += `<div class="summary-row" style="margin-top:15px;"><span>✓ 中獎注項:</span><strong>${winningResults.length}個</strong></div>`;
-            html += `<div class="summary-row"><span>✗ 未中獎注項:</span><strong>${losingResults.length}個</strong></div>`;
-            html += `<div class="summary-row"><span>💵 投注費用:</span><strong>$${totalCost}</strong></div>`;
-            const netProfit = totalWinnings - totalCost;
-            html += `<div class="summary-row" style="color:${netProfit>=0?'#28a745':'#dc3545'};font-weight:bold;"><span>收支:</span><strong>${netProfit>=0?'+':''}$${netProfit}</strong></div>`;
-            html += '<div class="prize-breakdown">';
-            Object.keys(prizeStats).forEach(key => {
-                const cnt = prizeStats[key];
-                const pi = PRIZE_INFO[key];
-                const amt = FIXED_PRIZES[key];
-                html += `<div class="prize-item"><div class="prize-level">${pi.name}</div><div class="prize-amount">${cnt}注</div>
-                    ${amt ? `<div style="font-size:11px;opacity:.8;">$${amt}/注</div>` : '<div style="font-size:11px;opacity:.8;">待定</div>'}</div>`;
+        }
+        progressFill.style.width = '100%';
+        statusDiv.textContent = `✅ 識別完成！共識別 ${allOcrTickets.length} 個注項`;
+        statusDiv.classList.add('success');
+        allOcrTickets.forEach(ticket => {
+            addTicketInput();
+            document.getElementById(`input-${ticketInputCount}`).value = ticket.join(',');
+            analyzeTicket(ticketInputCount);
+        });
+        setTimeout(() => { progressBar.style.display = 'none'; }, 2000);
+    }
+
+    function extractTicketsFromOCR(text) {
+        const tickets = [];
+        for (let line of text.split('\n')) {
+            line = line.replace(/^\d+\/\d+\s*期\s*/, '').replace(/\s*\(.*?\)\s*\$.*$/gi, '').replace(/\s*\(.*$/gi, '');
+            const numbers = extractNumbers(line);
+            if (numbers.length === 6) tickets.push(numbers);
+        }
+        return tickets;
+    }
+
+    function checkNumbers() {
+        if (drawingData.regularNumbers.length === 0) { alert('請先設定開獎號碼'); return; }
+        const validTickets = Object.values(allTicketsData).filter(t => t !== null);
+        if (validTickets.length === 0) { alert('請輸入注項'); return; }
+        const results = [];
+        let totalTicketCount = 0, totalCost = 0;
+        validTickets.forEach(ticketInfo => {
+            ticketInfo.tickets.forEach(ticket => {
+                results.push({ ...checkWinning(ticket), cost: ticketInfo.totalCost / ticketInfo.count, isHalf: ticketInfo.isHalf });
             });
-            html += '</div></div><div style="display:flex;flex-direction:column;">';
-            winningResults.forEach((r, i) => {
-                html += `<div class="result-item winning">
-                    <div class="result-label">✅ 中獎注項 ${i+1}</div>
-                    <div class="result-details">
+            totalTicketCount += ticketInfo.count;
+            totalCost += ticketInfo.totalCost;
+        });
+        lastResults = { results, totalCost, totalTicketCount };
+        document.getElementById('shareBtn').style.display = 'block';
+        displayResults(results, totalCost, totalTicketCount);
+    }
+
+    function checkWinning(userTicket) {
+        const regularSet = new Set(drawingData.regularNumbers);
+        const userSet = new Set(userTicket);
+        let matchCount = 0;
+        userTicket.forEach(n => { if (regularSet.has(n)) matchCount++; });
+        const hasSpecial = userSet.has(drawingData.specialNumber);
+        let prizeKey = null;
+        if (matchCount === 6) prizeKey = '1st';
+        else if (matchCount === 5 && hasSpecial) prizeKey = '2nd';
+        else if (matchCount === 5) prizeKey = '3rd';
+        else if (matchCount === 4 && hasSpecial) prizeKey = '4th';
+        else if (matchCount === 4) prizeKey = '5th';
+        else if (matchCount === 3 && hasSpecial) prizeKey = '6th';
+        else if (matchCount === 3) prizeKey = '7th';
+        const prizeInfo = prizeKey ? PRIZE_INFO[prizeKey] : null;
+        return {
+            numbers: userTicket, matches: matchCount, hasSpecial,
+            prizeLevel: prizeInfo ? prizeInfo.name : '未中獎',
+            prizeKey, prizeAmount: prizeKey && FIXED_PRIZES[prizeKey] ? FIXED_PRIZES[prizeKey] : null,
+            isPrize: !!prizeKey
+        };
+    }
+
+    function displayResults(results, totalCost, totalTicketCount) {
+        const resultsDiv = document.getElementById('results');
+        const winningResults = results.filter(r => r.isPrize).sort((a,b) => {
+            const ord = {'1st':0,'2nd':1,'3rd':2,'4th':3,'5th':4,'6th':5,'7th':6};
+            return ord[a.prizeKey] - ord[b.prizeKey];
+        });
+        const losingResults = results.filter(r => !r.isPrize);
+        const prizeStats = {};
+        let totalWinnings = 0;
+        winningResults.forEach(r => {
+            prizeStats[r.prizeKey] = (prizeStats[r.prizeKey] || 0) + 1;
+            if (r.prizeAmount) totalWinnings += r.prizeAmount;
+        });
+        let html = '<div class="summary-box">';
+        html += '<div class="summary-title">💰 中獎總金額</div>';
+        if (totalWinnings > 0) html += `<div class="summary-content"><strong>確定獲利: $${totalWinnings.toLocaleString()}</strong></div>`;
+        const variablePrizes = ['1st','2nd','3rd'];
+        const variablePrizeCount = Object.keys(prizeStats).filter(k => variablePrizes.includes(k)).length;
+        if (variablePrizeCount > 0) {
+            html += '<div class="summary-warning">⚠️ 部分獎項金額待定：';
+            if (prizeStats['1st']) html += ` 一等獎 ${prizeStats['1st']}注`;
+            if (prizeStats['2nd']) html += ` 二等獎 ${prizeStats['2nd']}注`;
+            if (prizeStats['3rd']) html += ` 三等獎 ${prizeStats['3rd']}注`;
+            html += '，需等待官方公佈</div>';
+        }
+        html += `<div class="summary-row" style="margin-top:15px;"><span>✓ 中獎注項:</span><strong>${winningResults.length}個</strong></div>`;
+        html += `<div class="summary-row"><span>✗ 未中獎注項:</span><strong>${losingResults.length}個</strong></div>`;
+        html += `<div class="summary-row"><span>💵 投注費用:</span><strong>$${totalCost}</strong></div>`;
+        const netProfit = totalWinnings - totalCost;
+        html += `<div class="summary-row" style="color:${netProfit>=0?'#28a745':'#dc3545'};font-weight:bold;"><span>收支:</span><strong>${netProfit>=0?'+':''}$${netProfit}</strong></div>`;
+        html += '<div class="prize-breakdown">';
+        Object.keys(prizeStats).forEach(key => {
+            const cnt = prizeStats[key], pi = PRIZE_INFO[key], amt = FIXED_PRIZES[key];
+            html += `<div class="prize-item"><div class="prize-level">${pi.name}</div><div class="prize-amount">${cnt}注</div>
+                ${amt ? `<div style="font-size:11px;opacity:.8;">$${amt}/注</div>` : '<div style="font-size:11px;opacity:.8;">待定</div>'}</div>`;
+        });
+        html += '</div></div><div style="display:flex;flex-direction:column;">';
+        winningResults.forEach((r, i) => {
+            html += `<div class="result-item winning">
+                <div class="result-label">✅ 中獎注項 ${i+1}</div>
+                <div class="result-details">
+                    <div>號碼: ${r.numbers.join(', ')}</div>
+                    <div>匹配: ${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}</div>
+                    <div>獎級: ${r.prizeLevel}</div>
+                </div>
+                <div class="result-prize">獎金: ${r.prizeAmount?'$'+r.prizeAmount:'金額待定'}</div>
+                <div class="result-cost">投注: $${r.cost}</div>
+            </div>`;
+        });
+        if (losingResults.length > 0) {
+            html += `<div style="padding:10px;background:rgba(28,33,48,0.8);border-radius:5px;margin-top:15px;text-align:center;color:rgba(240,237,232,0.5);">
+                <strong>❌ 未中獎 ${losingResults.length} 注 (點擊展開)</strong></div>`;
+            losingResults.forEach((r, i) => {
+                html += `<div class="result-item losing" onclick="toggleExpand(this)">
+                    <div class="result-label">未中獎注項 ${i+1}</div>
+                    <div class="result-details" style="display:none;">
                         <div>號碼: ${r.numbers.join(', ')}</div>
                         <div>匹配: ${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}</div>
-                        <div>獎級: ${r.prizeLevel}</div>
                     </div>
-                    <div class="result-prize">獎金: ${r.prizeAmount?'$'+r.prizeAmount:'金額待定'}</div>
-                    <div class="result-cost">投注: $${r.cost}</div>
+                    <div class="expand-toggle">點擊展開詳細信息</div>
                 </div>`;
             });
-            if (losingResults.length > 0) {
-                html += `<div style="padding:10px;background:#f0f0f0;border-radius:5px;margin-top:15px;text-align:center;"><strong>❌ 未中獎 ${losingResults.length} 注 (點擊展開)</strong></div>`;
-                losingResults.forEach((r, i) => {
-                    html += `<div class="result-item losing" onclick="toggleExpand(this)">
-                        <div class="result-label">未中獎注項 ${i+1}</div>
-                        <div class="result-details" style="display:none;">
-                            <div>號碼: ${r.numbers.join(', ')}</div>
-                            <div>匹配: ${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}</div>
-                        </div>
-                        <div class="expand-toggle">點擊展開詳細信息</div>
-                    </div>`;
-                });
-            }
-            html += '</div>';
-            resultsDiv.innerHTML = html;
-            resultsDiv.classList.add('show');
-            resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+        html += '</div>';
+        resultsDiv.innerHTML = html;
+        resultsDiv.classList.add('show');
+        resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
-        function toggleExpand(el) {
-            el.classList.toggle('expanded');
-            const details = el.querySelector('.result-details');
-            const toggle = el.querySelector('.expand-toggle');
-            if (el.classList.contains('expanded')) {
-                details.style.display = 'block'; toggle.textContent = '點擊收起詳細信息';
-            } else {
-                details.style.display = 'none'; toggle.textContent = '點擊展開詳細信息';
-            }
+    function toggleExpand(el) {
+        el.classList.toggle('expanded');
+        const details = el.querySelector('.result-details');
+        const toggle = el.querySelector('.expand-toggle');
+        if (el.classList.contains('expanded')) {
+            details.style.display = 'block'; toggle.textContent = '點擊收起詳細信息';
+        } else {
+            details.style.display = 'none'; toggle.textContent = '點擊展開詳細信息';
         }
+    }
 
-        function generateShareText() {
-            if (!lastResults) { alert('請先核對中獎'); return; }
-            const { results, totalCost } = lastResults;
-            const winningResults = results.filter(r => r.isPrize);
-            const prizeStats = {};
-            let totalWinnings = 0;
-            winningResults.forEach(r => {
-                prizeStats[r.prizeKey] = (prizeStats[r.prizeKey] || 0) + 1;
-                if (r.prizeAmount) totalWinnings += r.prizeAmount;
+    function generateShareText() {
+        if (!lastResults) { alert('請先核對中獎'); return; }
+        const { results, totalCost } = lastResults;
+        const winningResults = results.filter(r => r.isPrize);
+        const prizeStats = {};
+        let totalWinnings = 0;
+        winningResults.forEach(r => {
+            prizeStats[r.prizeKey] = (prizeStats[r.prizeKey] || 0) + 1;
+            if (r.prizeAmount) totalWinnings += r.prizeAmount;
+        });
+        let t = '🎰 六合彩中獎核對報告\n═══════════════════\n\n';
+        t += `📅 時間：${new Date().toLocaleString()}\n\n`;
+        t += `📌 開獎號碼\n正號：${drawingData.regularNumbers.join(', ')}\n特別號：${drawingData.specialNumber}\n\n`;
+        t += `💰 核對總結\n━━━━━━━━━━━━━━━\n✓ 中獎注項：${winningResults.length}個\n✗ 未中獎注項：${results.filter(r=>!r.isPrize).length}個\n`;
+        t += `投注費用：$${totalCost}\n確定獲利：$${totalWinnings}\n收支：${totalWinnings-totalCost>=0?'+':''}$${totalWinnings-totalCost}\n\n`;
+        if (Object.keys(prizeStats).length > 0) {
+            t += '🏆 獎項統計\n━━━━━━━━━━━━━━━\n';
+            Object.keys(prizeStats).forEach(k => {
+                const cnt = prizeStats[k], pi = PRIZE_INFO[k], amt = FIXED_PRIZES[k];
+                t += amt ? `${pi.name}：${cnt}注 ($${amt} x ${cnt} = $${amt*cnt})\n` : `${pi.name}：${cnt}注 (金額待定)\n`;
             });
-            let t = '🎰 六合彩中獎核對報告\n═══════════════════\n\n';
-            t += `📅 時間：${new Date().toLocaleString()}\n\n`;
-            t += `📌 開獎號碼\n正號：${drawingData.regularNumbers.join(', ')}\n特別號：${drawingData.specialNumber}\n\n`;
-            t += `💰 核對總結\n━━━━━━━━━━━━━━━\n✓ 中獎注項：${winningResults.length}個\n✗ 未中獎注項：${results.filter(r=>!r.isPrize).length}個\n`;
-            t += `投注費用：$${totalCost}\n確定獲利：$${totalWinnings}\n收支：${totalWinnings-totalCost>=0?'+':''}$${totalWinnings-totalCost}\n\n`;
-            if (Object.keys(prizeStats).length > 0) {
-                t += '🏆 獎項統計\n━━━━━━━━━━━━━━━\n';
-                Object.keys(prizeStats).forEach(k => {
-                    const cnt = prizeStats[k], pi = PRIZE_INFO[k], amt = FIXED_PRIZES[k];
-                    t += amt ? `${pi.name}：${cnt}注 ($${amt} x ${cnt} = $${amt*cnt})\n` : `${pi.name}：${cnt}注 (金額待定)\n`;
-                });
-                t += '\n';
-            }
-            if (winningResults.length > 0) {
-                t += '✅ 中獎注項明細\n━━━━━━━━━━━━━━━\n';
-                winningResults.forEach((r, i) => {
-                    t += `${i+1}. 號碼：${r.numbers.join(', ')}\n   匹配：${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}\n   獎級：${r.prizeLevel}\n   獎金：${r.prizeAmount?'$'+r.prizeAmount:'金額待定'}\n\n`;
-                });
-            }
-            t += '═══════════════════\n本報告由六合彩中獎核對系統生成';
-            return t;
+            t += '\n';
         }
-
-        function openShareModal() {
-            document.getElementById('shareText').value = generateShareText();
-            document.getElementById('shareModal').classList.add('show');
-        }
-        function closeShareModal() {
-            document.getElementById('shareModal').classList.remove('show');
-            document.getElementById('copySuccess').classList.remove('show');
-        }
-        function copyToClipboard() {
-            const ta = document.getElementById('shareText');
-            ta.select();
-            try {
-                document.execCommand('copy');
-                const s = document.getElementById('copySuccess');
-                s.classList.add('show');
-                setTimeout(() => s.classList.remove('show'), 3000);
-            } catch { alert('複製失敗，請手動複製'); }
-        }
-
-        function openSaveModal() { document.getElementById('saveModal').classList.add('show'); }
-        function closeSaveModal() {
-            document.getElementById('saveModal').classList.remove('show');
-            document.getElementById('saveName').value = '';
-        }
-        function saveTickets() {
-            const name = document.getElementById('saveName').value.trim();
-            if (!name) { alert('請輸入名稱'); return; }
-            const validTickets = Object.values(allTicketsData).filter(t => t !== null);
-            if (validTickets.length === 0) { alert('沒有有效的注項可保存'); return; }
-            const ticketInputs = [];
-            Object.keys(allTicketsData).forEach(id => {
-                if (allTicketsData[id]) ticketInputs.push(document.getElementById(`input-${id}`).value);
+        if (winningResults.length > 0) {
+            t += '✅ 中獎注項明細\n━━━━━━━━━━━━━━━\n';
+            winningResults.forEach((r, i) => {
+                t += `${i+1}. 號碼：${r.numbers.join(', ')}\n   匹配：${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}\n   獎級：${r.prizeLevel}\n   獎金：${r.prizeAmount?'$'+r.prizeAmount:'金額待定'}\n\n`;
             });
-            const saveData = {
-                name, timestamp: new Date().toLocaleString(),
-                rawInputs: ticketInputs,
-                ticketCount: validTickets.reduce((s,t)=>s+t.count,0)
-            };
-            let saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
-            saved.push(saveData);
-            localStorage.setItem('savedTickets', JSON.stringify(saved));
-            alert('成功保存！');
-            closeSaveModal();
         }
-        function openLoadModal() {
-            const saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
-            const list = document.getElementById('saveList');
-            if (saved.length === 0) {
-                list.innerHTML = '<div style="text-align:center;color:#999;">沒有保存的注項</div>';
-                document.getElementById('loadModal').classList.add('show');
-                return;
-            }
-            list.innerHTML = saved.map((s, i) => `
-                <div class="save-item">
-                    <div class="save-item-info">
-                        <div class="save-item-name">${s.name}</div>
-                        <div class="save-item-time">${s.timestamp} - ${s.ticketCount}個注項</div>
-                    </div>
-                    <div class="save-item-buttons">
-                        <button class="save-item-btn load-btn" onclick="loadTickets(${i})" style="background:#17a2b8;">載入</button>
-                        <button class="save-item-btn clear-btn" onclick="deleteTickets(${i})" style="background:#dc3545;">刪除</button>
-                    </div>
-                </div>`).join('');
+        t += '═══════════════════\n本報告由六合彩中獎核對系統生成';
+        return t;
+    }
+
+    function openShareModal() {
+        document.getElementById('shareText').value = generateShareText();
+        document.getElementById('shareModal').classList.add('show');
+    }
+    function closeShareModal() {
+        document.getElementById('shareModal').classList.remove('show');
+        document.getElementById('copySuccess').classList.remove('show');
+    }
+    function copyToClipboard() {
+        const ta = document.getElementById('shareText');
+        ta.select();
+        try {
+            document.execCommand('copy');
+            const s = document.getElementById('copySuccess');
+            s.classList.add('show');
+            setTimeout(() => s.classList.remove('show'), 3000);
+        } catch { alert('複製失敗，請手動複製'); }
+    }
+
+    function openSaveModal() { document.getElementById('saveModal').classList.add('show'); }
+    function closeSaveModal() {
+        document.getElementById('saveModal').classList.remove('show');
+        document.getElementById('saveName').value = '';
+    }
+    function saveTickets() {
+        const name = document.getElementById('saveName').value.trim();
+        if (!name) { alert('請輸入名稱'); return; }
+        const validTickets = Object.values(allTicketsData).filter(t => t !== null);
+        if (validTickets.length === 0) { alert('沒有有效的注項可保存'); return; }
+        const ticketInputs = [];
+        Object.keys(allTicketsData).forEach(id => {
+            if (allTicketsData[id]) ticketInputs.push(document.getElementById(`input-${id}`).value);
+        });
+        const saveData = {
+            name, timestamp: new Date().toLocaleString(),
+            rawInputs: ticketInputs,
+            ticketCount: validTickets.reduce((s,t)=>s+t.count,0)
+        };
+        let saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+        saved.push(saveData);
+        localStorage.setItem('savedTickets', JSON.stringify(saved));
+        alert('成功保存！');
+        closeSaveModal();
+    }
+    function openLoadModal() {
+        const saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+        const list = document.getElementById('saveList');
+        if (saved.length === 0) {
+            list.innerHTML = '<div style="text-align:center;color:#999;">沒有保存的注項</div>';
             document.getElementById('loadModal').classList.add('show');
+            return;
         }
-        function closeLoadModal() { document.getElementById('loadModal').classList.remove('show'); }
-        function loadTickets(index) {
-            const saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
-            const s = saved[index];
-            clearAllTickets();
-            s.rawInputs.forEach(input => {
-                addTicketInput();
-                document.getElementById(`input-${ticketInputCount}`).value = input;
-                analyzeTicket(ticketInputCount);
-            });
-            closeLoadModal();
-            alert(`已載入 ${s.ticketCount} 個注項！`);
-        }
-        function deleteTickets(index) {
-            if (!confirm('確定要刪除這組保存的注項嗎？')) return;
-            let saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
-            saved.splice(index, 1);
-            localStorage.setItem('savedTickets', JSON.stringify(saved));
-            openLoadModal();
-            alert('已刪除！');
-        }
-        function clearAllTickets() {
-            document.getElementById('ticketsContainer').innerHTML = '';
-            allTicketsData = {};
-            ticketInputCount = 0;
-            updateTotalSummary();
-        }
-        function clearAllData() {
-            if (!confirm('確定要清空所有已輸入的數據嗎？')) return;
-            clearDrawing();
-            clearAllTickets();
-            document.getElementById('saveName').value = '';
-            document.getElementById('results').innerHTML = '';
-            document.getElementById('results').classList.remove('show');
-            document.getElementById('shareBtn').style.display = 'none';
-            uploadedImages = [];
-            document.getElementById('previewContainer').innerHTML = '';
-            document.getElementById('ocrBtn').style.display = 'none';
-            lastResults = null;
-            alert('已清空所有數據！');
-        }
+        list.innerHTML = saved.map((s, i) => `
+            <div class="save-item">
+                <div class="save-item-info">
+                    <div class="save-item-name">${s.name}</div>
+                    <div class="save-item-time">${s.timestamp} - ${s.ticketCount}個注項</div>
+                </div>
+                <div class="save-item-buttons">
+                    <button class="save-item-btn load-btn" onclick="loadTickets(${i})" style="background:#17a2b8;">載入</button>
+                    <button class="save-item-btn clear-btn" onclick="deleteTickets(${i})" style="background:#dc3545;">刪除</button>
+                </div>
+            </div>`).join('');
+        document.getElementById('loadModal').classList.add('show');
+    }
+    function closeLoadModal() { document.getElementById('loadModal').classList.remove('show'); }
+    function loadTickets(index) {
+        const saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+        const s = saved[index];
+        clearAllTickets();
+        s.rawInputs.forEach(input => {
+            addTicketInput();
+            document.getElementById(`input-${ticketInputCount}`).value = input;
+            analyzeTicket(ticketInputCount);
+        });
+        closeLoadModal();
+        alert(`已載入 ${s.ticketCount} 個注項！`);
+    }
+    function deleteTickets(index) {
+        if (!confirm('確定要刪除這組保存的注項嗎？')) return;
+        let saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+        saved.splice(index, 1);
+        localStorage.setItem('savedTickets', JSON.stringify(saved));
+        openLoadModal();
+        alert('已刪除！');
+    }
+    function clearAllTickets() {
+        document.getElementById('ticketsContainer').innerHTML = '';
+        allTicketsData = {};
+        ticketInputCount = 0;
+        updateTotalSummary();
+    }
+    function clearAllData() {
+        if (!confirm('確定要清空所有已輸入的數據嗎？')) return;
+        clearDrawing();
+        clearAllTickets();
+        document.getElementById('saveName').value = '';
+        document.getElementById('results').innerHTML = '';
+        document.getElementById('results').classList.remove('show');
+        document.getElementById('shareBtn').style.display = 'none';
+        uploadedImages = [];
+        document.getElementById('previewContainer').innerHTML = '';
+        document.getElementById('ocrBtn').style.display = 'none';
+        lastResults = null;
+        alert('已清空所有數據！');
+    }
 
-        window.addEventListener('DOMContentLoaded', initPage);
+    window.addEventListener('DOMContentLoaded', initPage);
     </script>
 </body>
 </html>
