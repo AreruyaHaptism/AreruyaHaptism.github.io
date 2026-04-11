@@ -1,6 +1,1660 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-    <meta http-equiv="refresh" content="0; url=marksixmatch.html">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的工具站</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --bg: #f0f2f5;
+            --nav-height: 60px;
+            --tab-height: 52px;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+        }
+
+        /* ─── 頂部導航欄 ─── */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--nav-height);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 1000;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        .navbar-logo {
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            letter-spacing: 1px;
+            user-select: none;
+        }
+
+        .navbar-logo span {
+            opacity: 0.75;
+            font-size: 15px;
+            font-weight: normal;
+            margin-left: 10px;
+        }
+
+        /* ─── 分頁標籤列 ─── */
+        .tab-bar {
+            position: fixed;
+            top: var(--nav-height);
+            left: 0;
+            right: 0;
+            height: var(--tab-height);
+            background: white;
+            border-bottom: 1px solid #dde1f0;
+            display: flex;
+            align-items: stretch;
+            z-index: 999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-bar::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            flex-shrink: 0;
+            padding: 0 28px;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #666;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+            transform: scaleX(0);
+            transition: transform 0.2s;
+        }
+
+        .tab-btn:hover { color: var(--primary); }
+
+        .tab-btn.active {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .tab-btn.active::after {
+            transform: scaleX(1);
+        }
+
+        .tab-icon {
+            font-size: 18px;
+        }
+
+        /* ─── 主內容區 ─── */
+        .main-content {
+            margin-top: calc(var(--nav-height) + var(--tab-height));
+            min-height: calc(100vh - var(--nav-height) - var(--tab-height));
+        }
+
+        /* ─── 分頁面板 ─── */
+        .tab-panel {
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── 首頁面板 ─── */
+        #panel-home {
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .home-hero {
+            text-align: center;
+            padding: 50px 20px 40px;
+        }
+
+        .home-hero h1 {
+            font-size: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        .home-hero p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+            margin-top: 10px;
+        }
+
+        .tool-card {
+            background: white;
+            border-radius: 14px;
+            padding: 28px 22px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            text-align: center;
+            border: 2px solid transparent;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 28px rgba(102,126,234,0.2);
+            border-color: var(--primary);
+        }
+
+        .tool-card-icon {
+            font-size: 44px;
+            margin-bottom: 14px;
+        }
+
+        .tool-card-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .tool-card-desc {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.6;
+        }
+
+        .tool-card-tag {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 3px 12px;
+            background: #eef0ff;
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* ─── 六合彩工具面板（從 marksixmatch 移入）─── */
+        #panel-marksix {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: calc(100vh - var(--nav-height) - var(--tab-height));
+            padding: 20px;
+        }
+
+        /* ── 以下為原 marksixmatch.html 全部樣式 ── */
+        #panel-marksix .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        #panel-marksix .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        #panel-marksix h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        #panel-marksix .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        #panel-marksix .section-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        #panel-marksix .section {
+            margin-bottom: 25px;
+        }
+
+        #panel-marksix .input-group {
+            margin-bottom: 15px;
+        }
+
+        #panel-marksix label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        #panel-marksix input[type="number"],
+        #panel-marksix textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        #panel-marksix textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        #panel-marksix input[type="number"]:focus,
+        #panel-marksix textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        #panel-marksix .number-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        #panel-marksix .number-input-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #panel-marksix .number-input-wrapper label {
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        #panel-marksix .number-input-wrapper input {
+            padding: 8px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        #panel-marksix button {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        #panel-marksix button:hover { background: #5568d3; }
+        #panel-marksix button:disabled { background: #ccc; cursor: not-allowed; }
+
+        #panel-marksix .drawing-numbers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        #panel-marksix .number-ball {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        #panel-marksix .number-ball.special {
+            background: #ff6b6b;
+            border: 3px solid #cc5555;
+        }
+
+        #panel-marksix .info-text {
+            font-size: 12px;
+            color: #888;
+            margin-top: 8px;
+        }
+
+        #panel-marksix .input-guide-box {
+            background: #e8f5e9;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #2e7d32;
+        }
+
+        #panel-marksix .input-guide-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        #panel-marksix .input-guide-item {
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        #panel-marksix .code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d32f2f;
+        }
+
+        #panel-marksix .tickets-container { margin-bottom: 20px; }
+
+        #panel-marksix .ticket-item {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        #panel-marksix .ticket-item-number {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 30px;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        #panel-marksix .ticket-item-content { flex: 1; }
+
+        #panel-marksix .ticket-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 8px;
+        }
+
+        #panel-marksix .ticket-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        #panel-marksix .ticket-summary {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        #panel-marksix .ticket-summary.valid {
+            border-left-color: #28a745;
+            background: #f1f8f5;
+            color: #2e7d32;
+        }
+
+        #panel-marksix .ticket-summary.invalid {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+            color: #c41c3b;
+        }
+
+        #panel-marksix .summary-type { font-weight: bold; }
+        #panel-marksix .summary-detail { margin-top: 5px; }
+
+        #panel-marksix .ticket-actions {
+            display: flex;
+            gap: 5px;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        #panel-marksix .ticket-delete-btn {
+            padding: 6px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        #panel-marksix .ticket-delete-btn:hover { background: #c82333; }
+
+        #panel-marksix .ticket-expand-btn {
+            padding: 6px 12px;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        #panel-marksix .ticket-expand-btn:hover { background: #138496; }
+
+        #panel-marksix .ticket-combinations {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 8px;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #panel-marksix .ticket-combinations.show { display: block; }
+
+        #panel-marksix .combination-item {
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 3px;
+            margin-bottom: 5px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #333;
+        }
+
+        #panel-marksix .combination-item:last-child { margin-bottom: 0; }
+
+        #panel-marksix .add-ticket-btn {
+            padding: 12px 24px;
+            background: #28a745;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        #panel-marksix .add-ticket-btn:hover { background: #218838; }
+
+        #panel-marksix .total-summary {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            border-radius: 8px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+
+        #panel-marksix .total-summary-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        #panel-marksix .total-summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        #panel-marksix .total-summary-label { opacity: 0.9; }
+
+        #panel-marksix .total-summary-value {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        #panel-marksix .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+            background: #f8f9ff;
+        }
+
+        #panel-marksix .upload-area:hover {
+            border-color: #5568d3;
+            background: #f0f2ff;
+        }
+
+        #panel-marksix .upload-area.dragover {
+            border-color: #28a745;
+            background: #e8f5e9;
+        }
+
+        #panel-marksix #fileInput { display: none; }
+
+        #panel-marksix .preview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        #panel-marksix .preview-item { position: relative; }
+
+        #panel-marksix .preview-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+            border: 2px solid #ddd;
+        }
+
+        #panel-marksix .preview-image:hover { border-color: #667eea; }
+
+        #panel-marksix .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+
+        #panel-marksix .remove-btn:hover { background: #c82333; }
+
+        #panel-marksix .ocr-status {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-left: 4px solid #667eea;
+            border-radius: 3px;
+            font-size: 14px;
+            color: #333;
+            display: none;
+        }
+
+        #panel-marksix .ocr-status.show { display: block; }
+        #panel-marksix .ocr-status.success { background: #e8f5e9; border-left-color: #28a745; color: #28a745; }
+        #panel-marksix .ocr-status.error { background: #ffebee; border-left-color: #dc3545; color: #dc3545; }
+
+        #panel-marksix .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: none;
+        }
+
+        #panel-marksix .results.show { display: block; }
+
+        #panel-marksix .summary-box {
+            padding: 20px;
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #panel-marksix .summary-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #panel-marksix .summary-content {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        #panel-marksix .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        #panel-marksix .summary-warning {
+            font-size: 13px;
+            opacity: 0.9;
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        #panel-marksix .prize-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        #panel-marksix .prize-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        #panel-marksix .prize-level { font-size: 12px; opacity: 0.9; }
+        #panel-marksix .prize-amount { font-size: 16px; font-weight: bold; }
+
+        #panel-marksix .result-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-left: 4px solid #667eea;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #panel-marksix .result-item.winning {
+            border-left-color: #28a745;
+            background: #e8f5e9;
+            order: -1;
+        }
+
+        #panel-marksix .result-item.losing {
+            border-left-color: #ddd;
+            background: #fafafa;
+            max-height: 50px;
+            overflow: hidden;
+        }
+
+        #panel-marksix .result-item.losing.expanded { max-height: none; }
+
+        #panel-marksix .result-label { font-weight: bold; color: #333; margin-bottom: 5px; }
+        #panel-marksix .result-status { font-size: 14px; margin-bottom: 5px; }
+        #panel-marksix .winning .result-status { color: #28a745; }
+        #panel-marksix .losing .result-status { color: #999; }
+
+        #panel-marksix .result-details {
+            font-size: 13px;
+            color: #666;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 3px;
+        }
+
+        #panel-marksix .result-prize { font-size: 14px; color: #28a745; font-weight: bold; margin-top: 8px; }
+        #panel-marksix .result-cost { font-size: 12px; color: #666; margin-top: 5px; }
+        #panel-marksix .expand-toggle { font-size: 12px; color: #999; margin-top: 5px; }
+
+        #panel-marksix .storage-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+        #panel-marksix .clear-btn { background: #dc3545; }
+        #panel-marksix .clear-btn:hover { background: #c82333; }
+        #panel-marksix .save-btn { background: #28a745; }
+        #panel-marksix .save-btn:hover { background: #218838; }
+        #panel-marksix .load-btn { background: #17a2b8; }
+        #panel-marksix .load-btn:hover { background: #138496; }
+        #panel-marksix .share-btn { background: #25d366; }
+        #panel-marksix .share-btn:hover { background: #1eaa54; }
+
+        #panel-marksix .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        #panel-marksix .progress-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* ─── 模態框 ─── */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .share-text-area {
+            width: 100%;
+            height: 300px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+        }
+
+        .save-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .save-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .save-item-info { flex: 1; min-width: 150px; }
+        .save-item-name { font-weight: bold; color: #333; }
+        .save-item-time { font-size: 12px; color: #999; }
+        .save-item-buttons { display: flex; gap: 5px; margin-top: 8px; }
+
+        .save-item-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+            margin: 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+        }
+
+        .close-modal {
+            background: #999;
+            padding: 8px 15px;
+            width: auto;
+            margin: 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .copy-success {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e9;
+            border-left: 4px solid #28a745;
+            color: #28a745;
+            border-radius: 3px;
+        }
+
+        .copy-success.show { display: block; }
+
+        /* ─── 響應式 ─── */
+        @media (max-width: 600px) {
+            .home-hero h1 { font-size: 26px; }
+            .tools-grid { grid-template-columns: 1fr; }
+            .tab-btn { padding: 0 16px; font-size: 14px; }
+        }
+    </style>
 </head>
+<body>
+
+    <!-- ══ 頂部導航欄 ══ -->
+    <nav class="navbar">
+        <div class="navbar-logo">🛠️ 我的工具站 <span>My Toolbox</span></div>
+    </nav>
+
+    <!-- ══ 分頁標籤列 ══ -->
+    <div class="tab-bar" id="tabBar">
+        <button class="tab-btn active" onclick="switchTab('home', this)">
+            <span class="tab-icon">🏠</span> 首頁
+        </button>
+        <button class="tab-btn" onclick="switchTab('marksix', this)">
+            <span class="tab-icon">🎰</span> 六合彩核對
+        </button>
+        <!-- 未來新分頁加在這裡 -->
+    </div>
+
+    <!-- ══ 主內容區 ══ -->
+    <div class="main-content">
+
+        <!-- ▸ 首頁面板 -->
+        <div class="tab-panel active" id="panel-home">
+            <div class="home-hero">
+                <h1>我的工具站</h1>
+                <p>點選上方分頁，或點擊下方工具卡片快速進入</p>
+            </div>
+            <div class="tools-grid">
+                <div class="tool-card" onclick="switchTabByName('marksix')">
+                    <div class="tool-card-icon">🎰</div>
+                    <div class="tool-card-title">六合彩中獎核對</div>
+                    <div class="tool-card-desc">
+                        支援單式、複式、膽拖<br>
+                        批量 OCR 識別 + 數據保存 + 一鍵分享
+                    </div>
+                    <div class="tool-card-tag">彩票工具</div>
+                </div>
+                <!-- 未來新工具卡片加在這裡 -->
+            </div>
+        </div>
+
+        <!-- ▸ 六合彩核對面板 -->
+        <div class="tab-panel" id="panel-marksix">
+            <div class="container">
+                <!-- 開獎號碼設定 -->
+                <div class="card">
+                    <h1>🎰 六合彩中獎核對</h1>
+                    <p class="subtitle">支援單式、複式、膽拖 + 批量OCR + 數據保存 + 一鍵分享</p>
+                    <div class="section">
+                        <div class="section-title">第一步：設定開獎號碼</div>
+                        <div class="input-group">
+                            <label>請輸入6個正號碼（1-49）</label>
+                            <div class="number-inputs" id="drawingInputs"></div>
+                            <div class="info-text">請輸入6個不同的號碼</div>
+                        </div>
+                        <div class="input-group">
+                            <label>特別號（1-49）</label>
+                            <input type="number" id="specialInput" min="1" max="49" placeholder="輸入特別號">
+                        </div>
+                        <button onclick="setDrawingNumbers()">設定開獎號碼</button>
+                        <button onclick="clearDrawing()" style="background: #999;">清除</button>
+                        <div id="drawingDisplay"></div>
+                    </div>
+                </div>
+
+                <!-- 輸入指南 -->
+                <div class="card">
+                    <div class="input-guide-box">
+                        <div class="input-guide-title">📝 輸入指南</div>
+                        <div class="input-guide-item">
+                            <strong>【單式】</strong> <span class="code">1,2,3,4,5,6</span> 或 <span class="code">1 2 3 4 5 6</span>
+                        </div>
+                        <div class="input-guide-item">
+                            <strong>【複式】</strong> <span class="code">1,2,3,4,5,6,7,8</span> （7個或以上號碼）
+                        </div>
+                        <div class="input-guide-item">
+                            <strong>【膽拖】</strong> <span class="code">1,2,3/4,5,6,7,8</span> （膽碼 / 拖碼）
+                        </div>
+                        <div class="input-guide-item" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.5); padding-top: 10px;">
+                            <strong>【半注】</strong> 在末尾加 <span class="code">h</span> 表示半注（$5）：<span class="code">1,2,3,4,5,6 h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 注項輸入 -->
+                <div class="card">
+                    <div class="section-title">第二步：輸入你的注項</div>
+                    <div id="ticketsContainer" class="tickets-container"></div>
+                    <button class="add-ticket-btn" onclick="addTicketInput()">+ 新增注項</button>
+                    <div id="totalSummary"></div>
+
+                    <!-- OCR上傳 -->
+                    <div class="input-group" style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #ddd;">
+                        <label>或上傳圖片進行OCR識別</label>
+                        <div class="upload-area" onclick="document.getElementById('fileInput').click()"
+                             ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                            <div style="font-size: 18px; margin-bottom: 10px;">📸</div>
+                            <div style="font-weight: bold; margin-bottom: 5px;">點擊上傳或拖拽圖片</div>
+                            <div style="font-size: 12px; color: #666;">支持多張JPG、PNG等圖片格式</div>
+                        </div>
+                        <input type="file" id="fileInput" accept="image/*" multiple onchange="handleMultipleImages(event)">
+                        <div id="previewContainer" class="preview-container"></div>
+                        <button onclick="performBatchOCR()" id="ocrBtn" style="width: 100%; margin-top: 15px; display: none;">開始OCR識別</button>
+                        <div id="ocrStatus" class="ocr-status"></div>
+                        <div id="progressBar" class="progress-bar" style="display:none;">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+
+                    <div class="storage-buttons" style="margin-top: 20px;">
+                        <button onclick="checkNumbers()">✓ 核對中獎</button>
+                        <button class="share-btn" id="shareBtn" onclick="openShareModal()" style="display: none;">📤 分享結果</button>
+                        <button class="save-btn" onclick="openSaveModal()">💾 保存注項</button>
+                        <button class="load-btn" onclick="openLoadModal()">📂 載入注項</button>
+                        <button class="clear-btn" onclick="clearAllData()">🗑️ 清空所有</button>
+                    </div>
+                </div>
+
+                <!-- 結果顯示 -->
+                <div class="card">
+                    <div id="results" class="results"></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /main-content -->
+
+    <!-- ══ 模態框（分享）══ -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">📤 複製分享文本</div>
+            <textarea id="shareText" class="share-text-area" readonly></textarea>
+            <div class="copy-success" id="copySuccess">✅ 已複製到剪貼板！</div>
+            <button onclick="copyToClipboard()" style="width: 100%; margin-bottom: 10px; border:none; border-radius:5px; background:#667eea; color:white; font-size:16px; font-weight:bold; padding:12px; cursor:pointer;">📋 複製全部</button>
+            <button class="close-modal" onclick="closeShareModal()">關閉</button>
+        </div>
+    </div>
+
+    <!-- ══ 模態框（保存）══ -->
+    <div id="saveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">保存注項</div>
+            <div class="input-group">
+                <label>給這組注項命名</label>
+                <input type="text" id="saveName" placeholder="例如：2026年4月第1期"
+                       style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;font-size:14px;margin-bottom:15px;">
+            </div>
+            <button onclick="saveTickets()" style="border:none;border-radius:5px;background:#667eea;color:white;font-size:16px;font-weight:bold;padding:12px 20px;cursor:pointer;margin-right:10px;">保存</button>
+            <button class="close-modal" onclick="closeSaveModal()">取消</button>
+        </div>
+    </div>
+
+    <!-- ══ 模態框（載入）══ -->
+    <div id="loadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">已保存的注項</div>
+            <div class="save-list" id="saveList"></div>
+            <button class="close-modal" onclick="closeLoadModal()">關閉</button>
+        </div>
+    </div>
+
+    <!-- ══ 外部庫 ══ -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5"></script>
+
+    <script>
+        // ════════════════════════════════
+        //  分頁切換
+        // ════════════════════════════════
+        function switchTab(name, btn) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('panel-' + name).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function switchTabByName(name) {
+            const btn = [...document.querySelectorAll('.tab-btn')]
+                .find(b => b.getAttribute('onclick').includes("'" + name + "'"));
+            if (btn) switchTab(name, btn);
+        }
+
+        // ════════════════════════════════
+        //  六合彩核對邏輯（原 marksixmatch.js）
+        // ════════════════════════════════
+        let drawingData = { regularNumbers: [], specialNumber: null };
+        let uploadedImages = [];
+        let ticketInputCount = 0;
+        let allTicketsData = {};
+        let lastResults = null;
+
+        const PRIZE_INFO = {
+            '1st': { name: '一等獎', matches: 6, special: false },
+            '2nd': { name: '二等獎', matches: 5, special: true },
+            '3rd': { name: '三等獎', matches: 5, special: false },
+            '4th': { name: '四等獎', matches: 4, special: true },
+            '5th': { name: '五等獎', matches: 4, special: false },
+            '6th': { name: '六等獎', matches: 3, special: true },
+            '7th': { name: '七等獎', matches: 3, special: false }
+        };
+
+        const FIXED_PRIZES = { '7th': 40, '6th': 320, '5th': 640, '4th': 9600 };
+
+        function initPage() { generateDrawingInputs(); }
+
+        function generateDrawingInputs() {
+            const container = document.getElementById('drawingInputs');
+            container.innerHTML = '';
+            for (let i = 1; i <= 6; i++) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'number-input-wrapper';
+                wrapper.innerHTML = `<label>號碼 ${i}</label>
+                    <input type="number" class="drawing-input" min="1" max="49" placeholder="${i}">`;
+                container.appendChild(wrapper);
+            }
+        }
+
+        function setDrawingNumbers() {
+            const inputs = document.querySelectorAll('.drawing-input');
+            const numbers = Array.from(inputs).map(i => parseInt(i.value)).filter(n => !isNaN(n));
+            const special = parseInt(document.getElementById('specialInput').value);
+            if (numbers.length !== 6) { alert('請輸入6個有效的號碼'); return; }
+            if (isNaN(special) || special < 1 || special > 49) { alert('請輸入有效的特別號'); return; }
+            if (new Set(numbers).size !== 6) { alert('號碼不能重複'); return; }
+            drawingData.regularNumbers = numbers.sort((a, b) => a - b);
+            drawingData.specialNumber = special;
+            displayDrawingNumbers();
+            alert('開獎號碼已設定！');
+        }
+
+        function displayDrawingNumbers() {
+            const container = document.getElementById('drawingDisplay');
+            if (drawingData.regularNumbers.length === 0) { container.innerHTML = ''; return; }
+            let html = '<div style="margin-top: 15px;"><strong>✅ 已設定的開獎號碼：</strong></div><div class="drawing-numbers">';
+            drawingData.regularNumbers.forEach(num => {
+                html += `<div class="number-ball">${String(num).padStart(2,'0')}</div>`;
+            });
+            html += `<div class="number-ball special">${String(drawingData.specialNumber).padStart(2,'0')}</div></div>`;
+            container.innerHTML = html;
+        }
+
+        function clearDrawing() {
+            drawingData = { regularNumbers: [], specialNumber: null };
+            document.getElementById('drawingDisplay').innerHTML = '';
+            generateDrawingInputs();
+        }
+
+        function addTicketInput() {
+            const ticketId = ++ticketInputCount;
+            const container = document.getElementById('ticketsContainer');
+            const ticketItem = document.createElement('div');
+            ticketItem.className = 'ticket-item';
+            ticketItem.id = `ticket-${ticketId}`;
+            ticketItem.innerHTML = `
+                <div class="ticket-item-number">${ticketId}</div>
+                <div class="ticket-item-content">
+                    <input type="text" class="ticket-input" id="input-${ticketId}"
+                           placeholder="輸入注項（如：1,2,3,4,5,6 或 1,2,3/4,5,6,7,8）"
+                           oninput="analyzeTicket(${ticketId})">
+                    <div class="ticket-summary" id="summary-${ticketId}">
+                        <div style="color: #999;">等待輸入...</div>
+                    </div>
+                    <div class="ticket-combinations" id="combinations-${ticketId}"></div>
+                </div>
+                <div class="ticket-actions">
+                    <button class="ticket-expand-btn" id="expand-btn-${ticketId}"
+                            onclick="toggleCombinations(${ticketId})" style="display: none;">展開組合</button>
+                    <button class="ticket-delete-btn" onclick="deleteTicket(${ticketId})">刪除</button>
+                </div>`;
+            container.appendChild(ticketItem);
+            allTicketsData[ticketId] = null;
+            document.getElementById(`input-${ticketId}`).focus();
+        }
+
+        function deleteTicket(ticketId) {
+            const el = document.getElementById(`ticket-${ticketId}`);
+            if (el) el.remove();
+            delete allTicketsData[ticketId];
+            updateTotalSummary();
+        }
+
+        function toggleCombinations(ticketId) {
+            document.getElementById(`combinations-${ticketId}`).classList.toggle('show');
+        }
+
+        function analyzeTicket(ticketId) {
+            const input = document.getElementById(`input-${ticketId}`).value;
+            const summary = document.getElementById(`summary-${ticketId}`);
+            const expandBtn = document.getElementById(`expand-btn-${ticketId}`);
+            const combinationsDiv = document.getElementById(`combinations-${ticketId}`);
+            if (!input.trim()) {
+                summary.innerHTML = '<div style="color: #999;">等待輸入...</div>';
+                summary.className = 'ticket-summary';
+                expandBtn.style.display = 'none';
+                allTicketsData[ticketId] = null;
+                updateTotalSummary();
+                return;
+            }
+            const result = analyzeLine(input);
+            if (result) {
+                allTicketsData[ticketId] = result;
+                summary.className = 'ticket-summary valid';
+                summary.innerHTML = `<div class="summary-type">${result.typeLabel}</div>
+                    <div class="summary-detail">${result.count}注 × $${result.unitCost} = $${result.totalCost}</div>`;
+                if (result.type === 'complex' || result.type === 'danTuo') {
+                    expandBtn.style.display = 'block';
+                    displayCombinations(ticketId, result.tickets);
+                } else {
+                    expandBtn.style.display = 'none';
+                }
+                combinationsDiv.classList.remove('show');
+            } else {
+                allTicketsData[ticketId] = null;
+                summary.className = 'ticket-summary invalid';
+                summary.innerHTML = '<div>❌ 格式不正確</div>';
+                expandBtn.style.display = 'none';
+            }
+            updateTotalSummary();
+        }
+
+        function displayCombinations(ticketId, tickets) {
+            const div = document.getElementById(`combinations-${ticketId}`);
+            div.innerHTML = '';
+            const title = document.createElement('div');
+            title.style.cssText = 'font-size:12px;font-weight:bold;margin-bottom:8px;color:#333';
+            title.textContent = `共 ${tickets.length} 個組合：`;
+            div.appendChild(title);
+            tickets.forEach((ticket, idx) => {
+                const item = document.createElement('div');
+                item.className = 'combination-item';
+                item.textContent = `${idx + 1}. ${ticket.join(', ')}`;
+                div.appendChild(item);
+            });
+        }
+
+        function analyzeLine(line) {
+            line = line.trim();
+            const isHalf = line.toLowerCase().includes(' h');
+            const cleanLine = line.replace(/\s+h\s*$/i, '').trim();
+            if (cleanLine.includes('/')) {
+                const parts = cleanLine.split('/');
+                const dan = extractNumbers(parts[0]);
+                const tuo = extractNumbers(parts[1]);
+                if (dan.length > 0 && dan.length <= 5 && tuo.length > 0) {
+                    const tickets = generateDanTuoTickets(dan, tuo);
+                    const count = tickets.length;
+                    return {
+                        type: 'danTuo',
+                        typeLabel: `膽拖 (膽:${dan.length}個, 拖:${tuo.length}個)`,
+                        tickets, count: isHalf ? count / 2 : count,
+                        unitCost: isHalf ? 5 : 10,
+                        totalCost: isHalf ? count * 5 : count * 10,
+                        isHalf
+                    };
+                }
+            }
+            const numbers = extractNumbers(cleanLine);
+            if (numbers.length === 6) {
+                const unitCost = isHalf ? 5 : 10;
+                return { type: 'single', typeLabel: '單式', tickets: [numbers],
+                    count: isHalf ? 0.5 : 1, unitCost, totalCost: unitCost, isHalf };
+            } else if (numbers.length >= 7) {
+                const tickets = generateComplexTickets(numbers);
+                const count = tickets.length;
+                return {
+                    type: 'complex', typeLabel: `複式 (${numbers.length}個號)`,
+                    tickets, count: isHalf ? count / 2 : count,
+                    unitCost: isHalf ? 5 : 10,
+                    totalCost: isHalf ? count * 5 : count * 10,
+                    isHalf
+                };
+            }
+            return null;
+        }
+
+        function extractNumbers(text) {
+            const matches = text.match(/\d+/g);
+            if (!matches) return [];
+            return [...new Set(matches.map(m => parseInt(m)).filter(n => n > 0 && n <= 49))].sort((a,b)=>a-b);
+        }
+
+        function generateComplexTickets(numbers) {
+            const tickets = [];
+            function combine(arr, n, start=0, cur=[]) {
+                if (cur.length === n) { tickets.push([...cur]); return; }
+                for (let i = start; i < arr.length; i++) {
+                    cur.push(arr[i]); combine(arr, n, i+1, cur); cur.pop();
+                }
+            }
+            combine(numbers, 6);
+            return tickets;
+        }
+
+        function generateDanTuoTickets(dan, tuo) {
+            tuo = tuo.filter(n => !dan.includes(n));
+            const needFromTuo = 6 - dan.length;
+            if (tuo.length < needFromTuo) return [];
+            const tickets = [];
+            function combine(arr, n, start=0, cur=[]) {
+                if (cur.length === n) { tickets.push([...dan, ...cur].sort((a,b)=>a-b)); return; }
+                for (let i = start; i < arr.length; i++) {
+                    cur.push(arr[i]); combine(arr, n, i+1, cur); cur.pop();
+                }
+            }
+            combine(tuo, needFromTuo);
+            return tickets;
+        }
+
+        function updateTotalSummary() {
+            const container = document.getElementById('totalSummary');
+            let totalTickets = 0, totalCost = 0;
+            Object.values(allTicketsData).forEach(d => {
+                if (d) { totalTickets += d.count; totalCost += d.totalCost; }
+            });
+            if (totalTickets === 0) { container.innerHTML = ''; return; }
+            container.innerHTML = `
+                <div class="total-summary">
+                    <div class="total-summary-title">📊 注項統計</div>
+                    <div class="total-summary-item">
+                        <span class="total-summary-label">總注數：</span>
+                        <span class="total-summary-value">${totalTickets}</span>
+                    </div>
+                    <div class="total-summary-item">
+                        <span class="total-summary-label">總費用：</span>
+                        <span class="total-summary-value">$${totalCost}</span>
+                    </div>
+                </div>`;
+        }
+
+        function handleMultipleImages(event) {
+            for (let file of event.target.files) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    uploadedImages.push({ data: e.target.result, name: file.name });
+                    displayPreviewImages();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function displayPreviewImages() {
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = '';
+            uploadedImages.forEach((img, index) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                item.innerHTML = `<img src="${img.data}" class="preview-image" alt="preview">
+                    <button class="remove-btn" onclick="removeImage(${index})">✕</button>`;
+                container.appendChild(item);
+            });
+            document.getElementById('ocrBtn').style.display = uploadedImages.length > 0 ? 'block' : 'none';
+        }
+
+        function removeImage(index) {
+            uploadedImages.splice(index, 1);
+            displayPreviewImages();
+        }
+
+        function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('dragover'); }
+        function handleDragLeave(event) { event.currentTarget.classList.remove('dragover'); }
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            const files = event.dataTransfer.files;
+            if (files.length > 0) handleMultipleImages({ target: { files } });
+        }
+
+        async function performBatchOCR() {
+            if (uploadedImages.length === 0) { alert('請先上傳圖片'); return; }
+            const statusDiv = document.getElementById('ocrStatus');
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            statusDiv.classList.add('show');
+            statusDiv.classList.remove('error');
+            progressBar.style.display = 'block';
+            let allOcrTickets = [];
+            for (let i = 0; i < uploadedImages.length; i++) {
+                statusDiv.textContent = `⏳ 正在識別圖片 ${i+1}/${uploadedImages.length}...`;
+                progressFill.style.width = ((i / uploadedImages.length) * 100) + '%';
+                try {
+                    const result = await Tesseract.recognize(uploadedImages[i].data, 'chi_sim+eng');
+                    allOcrTickets.push(...extractTicketsFromOCR(result.data.text));
+                } catch {
+                    statusDiv.textContent = `❌ 圖片 ${i+1} 識別失敗`;
+                    statusDiv.classList.add('error');
+                }
+            }
+            progressFill.style.width = '100%';
+            statusDiv.textContent = `✅ 識別完成！共識別 ${allOcrTickets.length} 個注項`;
+            statusDiv.classList.add('success');
+            allOcrTickets.forEach(ticket => {
+                addTicketInput();
+                document.getElementById(`input-${ticketInputCount}`).value = ticket.join(',');
+                analyzeTicket(ticketInputCount);
+            });
+            setTimeout(() => { progressBar.style.display = 'none'; }, 2000);
+        }
+
+        function extractTicketsFromOCR(text) {
+            const tickets = [];
+            for (let line of text.split('\n')) {
+                line = line.replace(/^\d+\/\d+\s*期\s*/, '').replace(/\s*\(.*?\)\s*\$.*$/gi, '').replace(/\s*\(.*$/gi, '');
+                const numbers = extractNumbers(line);
+                if (numbers.length === 6) tickets.push(numbers);
+            }
+            return tickets;
+        }
+
+        function checkNumbers() {
+            if (drawingData.regularNumbers.length === 0) { alert('請先設定開獎號碼'); return; }
+            const validTickets = Object.values(allTicketsData).filter(t => t !== null);
+            if (validTickets.length === 0) { alert('請輸入注項'); return; }
+            const results = [];
+            let totalTicketCount = 0, totalCost = 0;
+            validTickets.forEach(ticketInfo => {
+                ticketInfo.tickets.forEach(ticket => {
+                    results.push({ ...checkWinning(ticket), cost: ticketInfo.totalCost / ticketInfo.count, isHalf: ticketInfo.isHalf });
+                });
+                totalTicketCount += ticketInfo.count;
+                totalCost += ticketInfo.totalCost;
+            });
+            lastResults = { results, totalCost, totalTicketCount };
+            document.getElementById('shareBtn').style.display = 'block';
+            displayResults(results, totalCost, totalTicketCount);
+        }
+
+        function checkWinning(userTicket) {
+            const regularSet = new Set(drawingData.regularNumbers);
+            const userSet = new Set(userTicket);
+            let matchCount = 0;
+            userTicket.forEach(n => { if (regularSet.has(n)) matchCount++; });
+            const hasSpecial = userSet.has(drawingData.specialNumber);
+            let prizeKey = null, isPrize = false;
+            if (matchCount === 6) { prizeKey = '1st'; isPrize = true; }
+            else if (matchCount === 5 && hasSpecial) { prizeKey = '2nd'; isPrize = true; }
+            else if (matchCount === 5) { prizeKey = '3rd'; isPrize = true; }
+            else if (matchCount === 4 && hasSpecial) { prizeKey = '4th'; isPrize = true; }
+            else if (matchCount === 4) { prizeKey = '5th'; isPrize = true; }
+            else if (matchCount === 3 && hasSpecial) { prizeKey = '6th'; isPrize = true; }
+            else if (matchCount === 3) { prizeKey = '7th'; isPrize = true; }
+            const prizeInfo = prizeKey ? PRIZE_INFO[prizeKey] : null;
+            return {
+                numbers: userTicket, matches: matchCount, hasSpecial,
+                prizeLevel: prizeInfo ? prizeInfo.name : '未中獎',
+                prizeKey, prizeAmount: prizeKey && FIXED_PRIZES[prizeKey] ? FIXED_PRIZES[prizeKey] : null,
+                isPrize
+            };
+        }
+
+        function displayResults(results, totalCost, totalTicketCount) {
+            const resultsDiv = document.getElementById('results');
+            const winningResults = results.filter(r => r.isPrize).sort((a,b) => {
+                const ord = { '1st':0,'2nd':1,'3rd':2,'4th':3,'5th':4,'6th':5,'7th':6 };
+                return ord[a.prizeKey] - ord[b.prizeKey];
+            });
+            const losingResults = results.filter(r => !r.isPrize);
+            const prizeStats = {};
+            let totalWinnings = 0;
+            winningResults.forEach(r => {
+                prizeStats[r.prizeKey] = (prizeStats[r.prizeKey] || 0) + 1;
+                if (r.prizeAmount) totalWinnings += r.prizeAmount;
+            });
+            let html = '<div class="summary-box">';
+            html += '<div class="summary-title">💰 中獎總金額</div>';
+            if (totalWinnings > 0) html += `<div class="summary-content"><strong>確定獲利: $${totalWinnings.toLocaleString()}</strong></div>`;
+            const variablePrizes = ['1st','2nd','3rd'];
+            const variablePrizeCount = Object.keys(prizeStats).filter(k => variablePrizes.includes(k)).length;
+            if (variablePrizeCount > 0) {
+                html += '<div class="summary-warning">⚠️ 部分獎項金額待定：';
+                if (prizeStats['1st']) html += ` 一等獎 ${prizeStats['1st']}注`;
+                if (prizeStats['2nd']) html += ` 二等獎 ${prizeStats['2nd']}注`;
+                if (prizeStats['3rd']) html += ` 三等獎 ${prizeStats['3rd']}注`;
+                html += '，需等待官方公佈</div>';
+            }
+            html += `<div class="summary-row" style="margin-top:15px;"><span>✓ 中獎注項:</span><strong>${winningResults.length}個</strong></div>`;
+            html += `<div class="summary-row"><span>✗ 未中獎注項:</span><strong>${losingResults.length}個</strong></div>`;
+            html += `<div class="summary-row"><span>💵 投注費用:</span><strong>$${totalCost}</strong></div>`;
+            const netProfit = totalWinnings - totalCost;
+            html += `<div class="summary-row" style="color:${netProfit>=0?'#28a745':'#dc3545'};font-weight:bold;"><span>收支:</span><strong>${netProfit>=0?'+':''}$${netProfit}</strong></div>`;
+            html += '<div class="prize-breakdown">';
+            Object.keys(prizeStats).forEach(key => {
+                const cnt = prizeStats[key];
+                const pi = PRIZE_INFO[key];
+                const amt = FIXED_PRIZES[key];
+                html += `<div class="prize-item"><div class="prize-level">${pi.name}</div><div class="prize-amount">${cnt}注</div>
+                    ${amt ? `<div style="font-size:11px;opacity:.8;">$${amt}/注</div>` : '<div style="font-size:11px;opacity:.8;">待定</div>'}</div>`;
+            });
+            html += '</div></div><div style="display:flex;flex-direction:column;">';
+            winningResults.forEach((r, i) => {
+                html += `<div class="result-item winning">
+                    <div class="result-label">✅ 中獎注項 ${i+1}</div>
+                    <div class="result-details">
+                        <div>號碼: ${r.numbers.join(', ')}</div>
+                        <div>匹配: ${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}</div>
+                        <div>獎級: ${r.prizeLevel}</div>
+                    </div>
+                    <div class="result-prize">獎金: ${r.prizeAmount?'$'+r.prizeAmount:'金額待定'}</div>
+                    <div class="result-cost">投注: $${r.cost}</div>
+                </div>`;
+            });
+            if (losingResults.length > 0) {
+                html += `<div style="padding:10px;background:#f0f0f0;border-radius:5px;margin-top:15px;text-align:center;"><strong>❌ 未中獎 ${losingResults.length} 注 (點擊展開)</strong></div>`;
+                losingResults.forEach((r, i) => {
+                    html += `<div class="result-item losing" onclick="toggleExpand(this)">
+                        <div class="result-label">未中獎注項 ${i+1}</div>
+                        <div class="result-details" style="display:none;">
+                            <div>號碼: ${r.numbers.join(', ')}</div>
+                            <div>匹配: ${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}</div>
+                        </div>
+                        <div class="expand-toggle">點擊展開詳細信息</div>
+                    </div>`;
+                });
+            }
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+            resultsDiv.classList.add('show');
+            resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function toggleExpand(el) {
+            el.classList.toggle('expanded');
+            const details = el.querySelector('.result-details');
+            const toggle = el.querySelector('.expand-toggle');
+            if (el.classList.contains('expanded')) {
+                details.style.display = 'block'; toggle.textContent = '點擊收起詳細信息';
+            } else {
+                details.style.display = 'none'; toggle.textContent = '點擊展開詳細信息';
+            }
+        }
+
+        function generateShareText() {
+            if (!lastResults) { alert('請先核對中獎'); return; }
+            const { results, totalCost } = lastResults;
+            const winningResults = results.filter(r => r.isPrize);
+            const prizeStats = {};
+            let totalWinnings = 0;
+            winningResults.forEach(r => {
+                prizeStats[r.prizeKey] = (prizeStats[r.prizeKey] || 0) + 1;
+                if (r.prizeAmount) totalWinnings += r.prizeAmount;
+            });
+            let t = '🎰 六合彩中獎核對報告\n═══════════════════\n\n';
+            t += `📅 時間：${new Date().toLocaleString()}\n\n`;
+            t += `📌 開獎號碼\n正號：${drawingData.regularNumbers.join(', ')}\n特別號：${drawingData.specialNumber}\n\n`;
+            t += `💰 核對總結\n━━━━━━━━━━━━━━━\n✓ 中獎注項：${winningResults.length}個\n✗ 未中獎注項：${results.filter(r=>!r.isPrize).length}個\n`;
+            t += `投注費用：$${totalCost}\n確定獲利：$${totalWinnings}\n收支：${totalWinnings-totalCost>=0?'+':''}$${totalWinnings-totalCost}\n\n`;
+            if (Object.keys(prizeStats).length > 0) {
+                t += '🏆 獎項統計\n━━━━━━━━━━━━━━━\n';
+                Object.keys(prizeStats).forEach(k => {
+                    const cnt = prizeStats[k], pi = PRIZE_INFO[k], amt = FIXED_PRIZES[k];
+                    t += amt ? `${pi.name}：${cnt}注 ($${amt} x ${cnt} = $${amt*cnt})\n` : `${pi.name}：${cnt}注 (金額待定)\n`;
+                });
+                t += '\n';
+            }
+            if (winningResults.length > 0) {
+                t += '✅ 中獎注項明細\n━━━━━━━━━━━━━━━\n';
+                winningResults.forEach((r, i) => {
+                    t += `${i+1}. 號碼：${r.numbers.join(', ')}\n   匹配：${r.matches}/6 ${r.hasSpecial?'+ 特別號':''}\n   獎級：${r.prizeLevel}\n   獎金：${r.prizeAmount?'$'+r.prizeAmount:'金額待定'}\n\n`;
+                });
+            }
+            t += '═══════════════════\n本報告由六合彩中獎核對系統生成';
+            return t;
+        }
+
+        function openShareModal() {
+            document.getElementById('shareText').value = generateShareText();
+            document.getElementById('shareModal').classList.add('show');
+        }
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('show');
+            document.getElementById('copySuccess').classList.remove('show');
+        }
+        function copyToClipboard() {
+            const ta = document.getElementById('shareText');
+            ta.select();
+            try {
+                document.execCommand('copy');
+                const s = document.getElementById('copySuccess');
+                s.classList.add('show');
+                setTimeout(() => s.classList.remove('show'), 3000);
+            } catch { alert('複製失敗，請手動複製'); }
+        }
+
+        function openSaveModal() { document.getElementById('saveModal').classList.add('show'); }
+        function closeSaveModal() {
+            document.getElementById('saveModal').classList.remove('show');
+            document.getElementById('saveName').value = '';
+        }
+        function saveTickets() {
+            const name = document.getElementById('saveName').value.trim();
+            if (!name) { alert('請輸入名稱'); return; }
+            const validTickets = Object.values(allTicketsData).filter(t => t !== null);
+            if (validTickets.length === 0) { alert('沒有有效的注項可保存'); return; }
+            const ticketInputs = [];
+            Object.keys(allTicketsData).forEach(id => {
+                if (allTicketsData[id]) ticketInputs.push(document.getElementById(`input-${id}`).value);
+            });
+            const saveData = {
+                name, timestamp: new Date().toLocaleString(),
+                rawInputs: ticketInputs,
+                ticketCount: validTickets.reduce((s,t)=>s+t.count,0)
+            };
+            let saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+            saved.push(saveData);
+            localStorage.setItem('savedTickets', JSON.stringify(saved));
+            alert('成功保存！');
+            closeSaveModal();
+        }
+        function openLoadModal() {
+            const saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+            const list = document.getElementById('saveList');
+            if (saved.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:#999;">沒有保存的注項</div>';
+                document.getElementById('loadModal').classList.add('show');
+                return;
+            }
+            list.innerHTML = saved.map((s, i) => `
+                <div class="save-item">
+                    <div class="save-item-info">
+                        <div class="save-item-name">${s.name}</div>
+                        <div class="save-item-time">${s.timestamp} - ${s.ticketCount}個注項</div>
+                    </div>
+                    <div class="save-item-buttons">
+                        <button class="save-item-btn load-btn" onclick="loadTickets(${i})" style="background:#17a2b8;">載入</button>
+                        <button class="save-item-btn clear-btn" onclick="deleteTickets(${i})" style="background:#dc3545;">刪除</button>
+                    </div>
+                </div>`).join('');
+            document.getElementById('loadModal').classList.add('show');
+        }
+        function closeLoadModal() { document.getElementById('loadModal').classList.remove('show'); }
+        function loadTickets(index) {
+            const saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+            const s = saved[index];
+            clearAllTickets();
+            s.rawInputs.forEach(input => {
+                addTicketInput();
+                document.getElementById(`input-${ticketInputCount}`).value = input;
+                analyzeTicket(ticketInputCount);
+            });
+            closeLoadModal();
+            alert(`已載入 ${s.ticketCount} 個注項！`);
+        }
+        function deleteTickets(index) {
+            if (!confirm('確定要刪除這組保存的注項嗎？')) return;
+            let saved = JSON.parse(localStorage.getItem('savedTickets')) || [];
+            saved.splice(index, 1);
+            localStorage.setItem('savedTickets', JSON.stringify(saved));
+            openLoadModal();
+            alert('已刪除！');
+        }
+        function clearAllTickets() {
+            document.getElementById('ticketsContainer').innerHTML = '';
+            allTicketsData = {};
+            ticketInputCount = 0;
+            updateTotalSummary();
+        }
+        function clearAllData() {
+            if (!confirm('確定要清空所有已輸入的數據嗎？')) return;
+            clearDrawing();
+            clearAllTickets();
+            document.getElementById('saveName').value = '';
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('shareBtn').style.display = 'none';
+            uploadedImages = [];
+            document.getElementById('previewContainer').innerHTML = '';
+            document.getElementById('ocrBtn').style.display = 'none';
+            lastResults = null;
+            alert('已清空所有數據！');
+        }
+
+        window.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
 </html>
