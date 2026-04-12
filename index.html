@@ -146,30 +146,57 @@
             background: linear-gradient(180deg, var(--gn-teal), var(--primary));
         }
 
+        /* Dynamic navbar mech info */
         .navbar-logo {
             font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--primary);
-            letter-spacing: 3px;
+            display: flex;
+            align-items: center;
+            gap: 0;
             user-select: none;
-            text-shadow: 0 0 12px var(--primary-glow);
+            flex-shrink: 1;
+            min-width: 0;
+            overflow: hidden;
         }
-        .navbar-logo .gn-text {
+        .nav-model {
+            font-size: 17px;
+            font-weight: 900;
+            color: var(--mech-primary);
+            letter-spacing: 3px;
+            text-shadow: 0 0 12px var(--mech-primary);
+            transition: color 0.5s, text-shadow 0.5s, opacity 0.4s;
+            white-space: nowrap;
+        }
+        .nav-sep {
+            color: rgba(240,237,232,0.25);
+            font-size: 14px;
+            margin: 0 10px;
+        }
+        .nav-name {
             color: var(--gn-teal);
             font-size: 12px;
             font-weight: 400;
-            margin-left: 12px;
             letter-spacing: 2px;
-            opacity: 0.85;
+            opacity: 0.9;
             text-shadow: 0 0 8px var(--gn-teal-glow);
+            white-space: nowrap;
+            transition: opacity 0.4s;
         }
-        .navbar-logo .model-num {
+        .nav-form {
             color: var(--armor-white);
-            font-size: 11px;
-            opacity: 0.5;
-            margin-left: 8px;
-            letter-spacing: 1px;
+            font-size: 10px;
+            opacity: 0.45;
+            margin-left: 10px;
+            letter-spacing: 1.5px;
+            white-space: nowrap;
+            transition: opacity 0.4s;
+        }
+        /* fade animation on mech switch */
+        .navbar-logo.switching .nav-name  { opacity: 0 !important; }
+        .navbar-logo.switching .nav-model { opacity: 0 !important; }
+        .navbar-logo.switching .nav-form  { opacity: 0 !important; }
+        @media (max-width: 480px) {
+            .nav-form { display: none; }
+            .nav-name { font-size: 10px; letter-spacing: 1px; }
         }
 
         /* ── Celestial Being SVG logo (top-right) ── */
@@ -297,7 +324,7 @@
 
         .home-hero {
             text-align: center;
-            padding: 50px 20px 40px;
+            padding: 28px 20px 20px;
             position: relative;
         }
         .home-hero::before {
@@ -312,15 +339,16 @@
         }
         .home-hero h1 {
             font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
-            font-size: 32px;
+            font-size: 22px;
             font-weight: 900;
-            background: linear-gradient(135deg, var(--primary) 0%, #FF9240 50%, var(--gn-teal) 100%);
+            background: linear-gradient(135deg, var(--mech-primary) 0%, #FF9240 50%, var(--gn-teal) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             letter-spacing: 4px;
             text-transform: uppercase;
+            transition: background 0.5s;
         }
         .home-hero .subtitle-jp {
             font-family: 'Orbitron', sans-serif;
@@ -364,8 +392,10 @@
             text-shadow: 0 0 8px var(--primary-glow);
         }
 
-        /* Mech info display in hero (replaces static spec bar) */
-        .mech-hero-info {
+        /* Mech info display in hero — hidden, info moved to navbar */
+        .mech-hero-info { display: none; }
+
+        .mech-hero-info-UNUSED {
             width: 100%;
             max-width: 640px;
             margin: 28px auto 0;
@@ -785,10 +815,11 @@
 
     <!-- ══ 頂部導航欄 ══ -->
     <nav class="navbar">
-        <div class="navbar-logo">
-            GN-011
-            <span class="gn-text">GUNDAM HARUTE</span>
-            <span class="model-num">// CELESTIAL BEING</span>
+        <div class="navbar-logo" id="navbarLogo">
+            <span class="nav-model" id="navModel">GN-011</span>
+            <span class="nav-sep">//</span>
+            <span class="nav-name" id="navName">GUNDAM HARUTE</span>
+            <span class="nav-form" id="navForm">MS FORM</span>
         </div>
         <!-- Celestial Being Logo (右上角) - 官方圖片 -->
         <div class="cb-logo-wrap">
@@ -819,96 +850,7 @@
             <div class="home-hero">
                 <div class="subtitle-jp">CELESTIAL BEING — ALLELUJAH HAPTISM UNIT HISTORY</div>
                 <h1>TOOLBOX</h1>
-                <p>滾動頁面可切換背景機體展示　｜　點選下方工具卡片快速進入</p>
-
-                <!-- 動態機體簡介區（與浮水印同步切換）-->
-                <div class="mech-hero-info">
-                    <!-- 0: Kyrios MS -->
-                    <div class="mhi-slide" id="mhi-0">
-                        <div class="mhi-header">
-                            <span class="mhi-model">GN-003</span>
-                            <span class="mhi-name">KYRIOS</span>
-                            <span class="mhi-form">MS FORM</span>
-                        </div>
-                        <div class="mhi-desc">一期主役機，藍白配色，可高速可變形。裝備GN突擊步槍與GN手槍，由超級士兵亞列路亞駕駛出擊。</div>
-                        <div class="mhi-specs">
-                            <div class="mhi-spec"><div class="mhi-spec-l">MODEL</div><div class="mhi-spec-v">GN-003</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">HEIGHT</div><div class="mhi-spec-v">18.3m</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">PILOT</div><div class="mhi-spec-v">ALLELUJAH</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">SEASON</div><div class="mhi-spec-v">S1</div></div>
-                        </div>
-                    </div>
-                    <!-- 1: Kyrios MA -->
-                    <div class="mhi-slide" id="mhi-1">
-                        <div class="mhi-header">
-                            <span class="mhi-model">GN-003</span>
-                            <span class="mhi-name">KYRIOS</span>
-                            <span class="mhi-form">FLIGHT FORM</span>
-                        </div>
-                        <div class="mhi-desc">KYRIOS飛行形態，機身重組為高速噴射戰機。可搭載GN Archer與瑪利露協同作戰，突破高速戰場。</div>
-                        <div class="mhi-specs">
-                            <div class="mhi-spec"><div class="mhi-spec-l">MODE</div><div class="mhi-spec-v">MA FLIGHT</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">COMBO</div><div class="mhi-spec-v">GN ARCHER</div></div>
-                        </div>
-                    </div>
-                    <!-- 2: Arios MS -->
-                    <div class="mhi-slide" id="mhi-2">
-                        <div class="mhi-header">
-                            <span class="mhi-model">GN-007</span>
-                            <span class="mhi-name">ARIOS</span>
-                            <span class="mhi-form">MS FORM</span>
-                        </div>
-                        <div class="mhi-desc">二期後繼機，強化KYRIOS的可變設計。綠白配色，配備強化版GN突擊步槍II，機動性全面提升。</div>
-                        <div class="mhi-specs">
-                            <div class="mhi-spec"><div class="mhi-spec-l">MODEL</div><div class="mhi-spec-v">GN-007</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">HEIGHT</div><div class="mhi-spec-v">18.4m</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">PILOT</div><div class="mhi-spec-v">ALLELUJAH</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">SEASON</div><div class="mhi-spec-v">S2</div></div>
-                        </div>
-                    </div>
-                    <!-- 3: Arios MA -->
-                    <div class="mhi-slide" id="mhi-3">
-                        <div class="mhi-header">
-                            <span class="mhi-model">GN-007</span>
-                            <span class="mhi-name">ARIOS</span>
-                            <span class="mhi-form">FLIGHT FORM</span>
-                        </div>
-                        <div class="mhi-desc">ARIOS飛行形態，可與GN Archer合體變身Archer Arios，以壓倒性火力進行大範圍支援。</div>
-                        <div class="mhi-specs">
-                            <div class="mhi-spec"><div class="mhi-spec-l">MODE</div><div class="mhi-spec-v">MA FLIGHT</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">UNION</div><div class="mhi-spec-v">ARCHER ARIOS</div></div>
-                        </div>
-                    </div>
-                    <!-- 4: Harute MS -->
-                    <div class="mhi-slide active" id="mhi-4">
-                        <div class="mhi-header">
-                            <span class="mhi-model">GN-011</span>
-                            <span class="mhi-name">HARUTE</span>
-                            <span class="mhi-form">MS FORM</span>
-                        </div>
-                        <div class="mhi-desc">劇場版最終機體，亞列路亞與索馬雙駕駛。啟動MARUTE模式時超級士兵本能全開，達到機體性能極限。</div>
-                        <div class="mhi-specs">
-                            <div class="mhi-spec"><div class="mhi-spec-l">MODEL</div><div class="mhi-spec-v">GN-011</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">HEIGHT</div><div class="mhi-spec-v">19.0m</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">WEIGHT</div><div class="mhi-spec-v">77.1t</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">MODE</div><div class="mhi-spec-v">MARUTE</div></div>
-                        </div>
-                    </div>
-                    <!-- 5: Harute MA -->
-                    <div class="mhi-slide" id="mhi-5">
-                        <div class="mhi-header">
-                            <span class="mhi-model">GN-011</span>
-                            <span class="mhi-name">HARUTE</span>
-                            <span class="mhi-form">FLIGHT FORM</span>
-                        </div>
-                        <div class="mhi-desc">HARUTE飛行形態將GN劍步槍展開為機翼，搭配GN加農炮與GN剪刀Bit，TRANS-AM全開時爆發最強火力。</div>
-                        <div class="mhi-specs">
-                            <div class="mhi-spec"><div class="mhi-spec-l">WEAPON</div><div class="mhi-spec-v">GN SWORD</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">SYSTEM</div><div class="mhi-spec-v">TRANS-AM</div></div>
-                            <div class="mhi-spec"><div class="mhi-spec-l">BITS</div><div class="mhi-spec-v">SCISSOR</div></div>
-                        </div>
-                    </div>
-                </div>
+                <p>滾動切換機體 　｜　點選工具卡片快速進入</p>
             </div>
 
             <div class="tools-grid">
@@ -1037,37 +979,42 @@
     //  MECH SCROLL WATERMARK + THEME SWITCHER
     // ══════════════════════════════════════════════════════════
     const MECHS = [
-        { id: 0, theme: 'theme-kyrios-ms',  primary: '#1A7AFF', secondary: '#00D4CC' },
-        { id: 1, theme: 'theme-kyrios-ma',  primary: '#1A7AFF', secondary: '#00D4CC' },
-        { id: 2, theme: 'theme-arios-ms',   primary: '#0DBF6F', secondary: '#A0E4C8' },
-        { id: 3, theme: 'theme-arios-ma',   primary: '#0DBF6F', secondary: '#A0E4C8' },
-        { id: 4, theme: 'theme-harute-ms',  primary: '#E8650A', secondary: '#00D4CC' },
-        { id: 5, theme: 'theme-harute-ma',  primary: '#E8650A', secondary: '#00D4CC' }
+        { id: 0, theme: 'theme-kyrios-ms',  primary: '#1A7AFF', secondary: '#00D4CC', model: 'GN-003', name: 'GUNDAM KYRIOS',  form: 'MS FORM'     },
+        { id: 1, theme: 'theme-kyrios-ma',  primary: '#1A7AFF', secondary: '#00D4CC', model: 'GN-003', name: 'GUNDAM KYRIOS',  form: 'FLIGHT FORM'  },
+        { id: 2, theme: 'theme-arios-ms',   primary: '#0DBF6F', secondary: '#A0E4C8', model: 'GN-007', name: 'GUNDAM ARIOS',   form: 'MS FORM'     },
+        { id: 3, theme: 'theme-arios-ma',   primary: '#0DBF6F', secondary: '#A0E4C8', model: 'GN-007', name: 'GUNDAM ARIOS',   form: 'FLIGHT FORM'  },
+        { id: 4, theme: 'theme-harute-ms',  primary: '#E8650A', secondary: '#00D4CC', model: 'GN-011', name: 'GUNDAM HARUTE',  form: 'MS FORM'     },
+        { id: 5, theme: 'theme-harute-ma',  primary: '#E8650A', secondary: '#00D4CC', model: 'GN-011', name: 'GUNDAM HARUTE',  form: 'FLIGHT FORM'  }
     ];
 
     let currentMech = 4; // start with Harute MS
     let autoTimer = null;
 
     function activateMech(idx) {
-        // Always update (no early return) so info panel stays in sync
         currentMech = idx;
+        const m = MECHS[idx];
 
         // Watermark slides
         document.querySelectorAll('.wm-slide').forEach((el, i) => el.classList.toggle('active', i === idx));
-        // Mech info bottom-left
-        document.querySelectorAll('.mech-info-card').forEach((el, i) => el.classList.toggle('active', i === idx));
-        // Hero info (home panel)
-        document.querySelectorAll('.mhi-slide').forEach((el, i) => el.classList.toggle('active', i === idx));
         // Dots
         document.querySelectorAll('.mech-dot').forEach((el, i) => el.classList.toggle('active', i === idx));
 
         // Theme class on body
-        const m = MECHS[idx];
         document.body.className = m.theme;
 
-        // Dynamic CSS vars for mech-info-panel colours
+        // Dynamic CSS vars
         document.documentElement.style.setProperty('--mech-primary', m.primary);
         document.documentElement.style.setProperty('--mech-secondary', m.secondary);
+
+        // ── Update navbar mech info with a brief fade ──
+        const logo = document.getElementById('navbarLogo');
+        logo.classList.add('switching');
+        setTimeout(() => {
+            document.getElementById('navModel').textContent = m.model;
+            document.getElementById('navName').textContent  = m.name;
+            document.getElementById('navForm').textContent  = m.form;
+            logo.classList.remove('switching');
+        }, 200);
     }
 
     // ── Scroll-driven switching (home panel only) ──
