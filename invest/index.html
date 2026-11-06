@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<!--
+  嚴格 CSP：只允許本站自己的腳本與樣式，不允許 inline script / inline style / eval。
+  connect-src 只開 Firebase 與（選用的）Twelve Data。
+  注意：GitHub Pages 不能設 HTTP header，meta CSP 無法限制 frame-ancestors，
+  所以 app.js 內另有防 iframe 嵌入的檢查；改用 Cloudflare Pages 後可在 _headers 補上完整標頭。
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://api.twelvedata.com; base-uri 'none'; form-action 'none'; object-src 'none'">
+<title>月供投資</title>
+<link rel="stylesheet" href="invest.css">
+</head>
+<body class="inv-page">
+<div class="inv-top"><a href="../" class="inv-back">← 返回工具站</a></div>
+<div id="panel-invest">
+  <div class="inv-wrap" id="invest-root"></div>
+</div>
+<noscript>需要啟用 JavaScript。</noscript>
+<script src="engine.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script src="boot.js"></script>
+</body>
+</html>

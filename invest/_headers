@@ -1,0 +1,10 @@
+# 只有改用 Cloudflare Pages / Netlify 託管時才會生效（GitHub Pages 不支援自訂標頭）。
+# 若採用，請把這個檔案放到網站根目錄，並把路徑改成 /invest/*。
+/invest/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://api.twelvedata.com; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin
