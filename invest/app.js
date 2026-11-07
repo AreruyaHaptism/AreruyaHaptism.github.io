@@ -243,14 +243,14 @@
     const hist = Object.keys(doc.monthlyDone).sort().reverse().slice(0, 12).map((k) => '<span class="tag funded">' + esc(k) + '</span>').join(' ');
     return '<div class="inv-card"><h2>本人月供：每月 ' + s.monthly.day + ' 日 ' + usd0(s.monthly.user) + '</h2>' +
       '<div class="inv-scroll"><table><tr><th>資產</th><th>目標比例</th><th>應買金額</th><th>價格</th><th>約可買股數</th><th>整股</th><th>實際買入金額</th></tr>' + rows + '</table></div>' +
-      '<div class="inv-note">SPCX 屬月供以外的獨立操作：本人每月 <b>' + s.spcx.user + '</b> 股（不計入上述百分比）。QQQI、QYLD 為既有持倉，不在月供與加倉範圍。</div>' +
+      '<div class="inv-note">SPCX 屬月供以外的獨立操作：本人每月 <b>' + usd0(s.spcxUsd.user) + '</b>（不計入上述百分比）。QQQI、QYLD 為既有持倉，不在月供與加倉範圍。</div>' +
       '<div class="sp8"></div><button class="inv-btn alt" data-act="fetch" data-target="monthly">自動抓價（選用）</button>' +
       '<div class="inv-grid mt8"><div><label>執行日期</label><input type="date" id="mp-date" value="' + today() + '"></div></div>' +
       '<div class="sp8"></div><button class="inv-btn" data-act="logMonthly">記錄本月月供已執行</button>' +
       '<div class="inv-note">已記錄月份：' + (hist || '尚無') + '</div></div>' +
       '<div class="inv-card"><h2>配偶月供（僅供參考，不記錄）：每月 ' + usd0(s.monthly.spouse) + '</h2>' +
       '<div class="inv-scroll"><table><tr><th>資產</th><th>目標比例</th><th>每月買入金額</th></tr>' + spouseRows + '</table></div>' +
-      '<div class="inv-note">SPCX 每月 <b>' + s.spcx.spouse + '</b> 股。這裡只列出每月要買多少，不做記錄與統計。</div></div>';
+      '<div class="inv-note">SPCX 每月 <b>' + usd0(s.spcxUsd.spouse) + '</b>。這裡只列出每月要買多少，不做記錄與統計。</div></div>';
   }
   function recalcMonthly() {
     document.querySelectorAll('input[data-monthly]').forEach((inp) => {
@@ -294,7 +294,7 @@
       fld('se-rtrig', '回收觸發價比例', s.recovery.triggerPct) + fld('se-rweeks', '回收週數', s.recovery.weeks, '1') + fld('se-rtr', '每週賣出比例', s.recovery.tranchePct) + '</div>' +
       '<div class="inv-grid mt10">' + ALL.map((a) => fld('se-w-' + a, a + ' 目標比例', s.weights[a])).join('') + '</div>' +
       '<div class="inv-grid mt10">' + fld('se-mu', '月供：本人 (USD)', s.monthly.user, '0.01') + fld('se-ms', '月供：配偶 (USD)', s.monthly.spouse, '0.01') + fld('se-md', '月供日', s.monthly.day, '1') +
-      fld('se-spu', 'SPCX 本人股數', s.spcx.user, '1') + fld('se-sps', 'SPCX 配偶股數', s.spcx.spouse, '1') + '</div>' +
+      fld('se-spu', 'SPCX 本人每月 (USD)', s.spcxUsd.user, '0.01') + fld('se-sps', 'SPCX 配偶每月 (USD)', s.spcxUsd.spouse, '0.01') + '</div>' +
       '<div class="inv-grid wide mt10"><div><label>Twelve Data API 金鑰（選用，只存在你的私有雲端文件）</label><input type="password" id="se-key" value="' + esc(s.apiKey) + '" autocomplete="off"></div></div>' +
       '<div class="sp8"></div><button class="inv-btn" data-act="saveSettings">儲存設定</button></div>' +
       '<div class="inv-card"><h2>備份</h2><button class="inv-btn alt" data-act="export">匯出 JSON</button><label class="inv-btn ghost inv-file">匯入 JSON<input type="file" id="se-import" accept=".json"></label>' +
@@ -438,7 +438,7 @@
     let sum = 0; ALL.forEach((a) => { s.weights[a] = need('se-w-' + a, a + ' 目標比例'); sum += s.weights[a]; });
     if (Math.abs(sum - 1) > 0.001) throw new Error('目標比例合計必須為 100%（目前 ' + (sum * 100).toFixed(1) + '%）');
     s.monthly.user = need('se-mu', '本人月供'); s.monthly.spouse = need('se-ms', '配偶月供'); s.monthly.day = need('se-md', '月供日');
-    s.spcx.user = need('se-spu', 'SPCX 本人'); s.spcx.spouse = need('se-sps', 'SPCX 配偶'); s.apiKey = sv('se-key');
+    s.spcxUsd.user = need('se-spu', 'SPCX 本人'); s.spcxUsd.spouse = need('se-sps', 'SPCX 配偶'); s.apiKey = sv('se-key');
     st.cash = need('se-cash', '現金寶'); st.boxx = need('se-boxx', 'BOXX'); st.asOf = sv('se-asof') || st.asOf;
     ADD.forEach((sym) => {
       const a = st.assets[sym]; a.high52 = need('se-high-' + sym, sym + ' 52 週高'); a.roundId = Math.max(1, Math.round(need('se-round-' + sym, sym + ' 輪次')));

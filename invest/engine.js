@@ -25,7 +25,7 @@
     ],
     weights: { VYM: 0.32, SCHD: 0.28, QQQ: 0.15, SMH: 0.12, GLD: 0.13 },
     monthly: { user: 1250, spouse: 6250, day: 5 },
-    spcx: { user: 1, spouse: 5 },
+    spcxUsd: { user: 200, spouse: 1000 }, // SPCX 為月供以外的獨立定投，以美元金額計（舊欄位 spcx 為股數，已停用）
     recovery: { triggerPct: 0.95, weeks: 10, tranchePct: 0.10 },
     lockedLiquid: null,           // 若設定，資金池改用此固定流動資金基準
     apiKey: ''                    // Twelve Data 金鑰（只存在你的私有 Firestore 文件）
@@ -405,7 +405,7 @@
     });
     return {
       user, spouse, total: user + spouse, rows,
-      spcx: { user: settings.spcx.user, spouse: settings.spcx.spouse, total: settings.spcx.user + settings.spcx.spouse }
+      spcx: { user: settings.spcxUsd.user, spouse: settings.spcxUsd.spouse, total: settings.spcxUsd.user + settings.spcxUsd.spouse }
     };
   }
 
