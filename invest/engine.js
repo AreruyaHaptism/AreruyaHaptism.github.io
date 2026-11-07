@@ -123,6 +123,9 @@
       if (!(a.recovery && a.recovery.active) && close >= trigPrice() - EPS && a.cumulative > 0) {
         a.recovery = { active: true, weeksDone: 0, base: a.cumulative, roundId: a.roundId, startedAt: opts.date || null, id: sym + ':' + a.roundId + ':' + (opts.date || 'x') };
         events.push({ sym, type: 'recovery-start', base: a.cumulative });
+      } else if (a.recovery && a.recovery.active && num(a.recovery.weeksDone) === 0 && a.recovery.roundId === a.roundId && a.cumulative > 0) {
+        // 還沒賣出第一筆：基數隨最新累計本金更新（一旦賣出第一筆就鎖定，之後新倉不併入）
+        a.recovery.base = a.cumulative;
       }
 
       // 2) 創新高重置：僅更新基準與 Level 次數，不影響進行中的回收排程。
@@ -156,9 +159,14 @@
       const r = a.recovery;
       if (r && r.active) {
         const trig = trigPrice();
+        if (opts.date && close >= trig - EPS) {
+          r.advised = r.advised || [];
+          const awk = nextWednesday(opts.date);
+          if (!r.advised.includes(awk)) r.advised.push(awk);
+        }
         const tranche = Math.round(r.base * settings.recovery.tranchePct * 100) / 100;
-        if (close >= trig - EPS) item.recovery = { status: 'sell', week: r.weeksDone + 1, of: settings.recovery.weeks, amount: tranche, trigger: trig, base: r.base };
-        else item.recovery = { status: 'paused', week: r.weeksDone + 1, of: settings.recovery.weeks, amount: 0, trigger: trig, base: r.base };
+        if (close >= trig - EPS) item.recovery = { status: 'sell', week: r.weeksDone + 1, of: settings.recovery.weeks, amount: tranche, trigger: trig, base: r.base, locked: r.weeksDone > 0, startedAt: r.startedAt, pctAbove: close / trig - 1 };
+        else item.recovery = { status: 'paused', week: r.weeksDone + 1, of: settings.recovery.weeks, amount: 0, trigger: trig, base: r.base, locked: r.weeksDone > 0, startedAt: r.startedAt, pctAbove: close / trig - 1 };
       }
       items.push(item);
     }
@@ -244,7 +252,8 @@
   //  - 每筆加倉買入都記為一次；實際金額少於「該次應買」的差額累積成欠買（backlog），下次加倉時補上。
   //    應買 = 該 Level 每週金額 + 當時欠買。欠買不會超過單一資產上限的剩餘額度（由 review 控制）。
   //  - 回收賣出每一筆立即釋放等額累計本金（不必等 10 週賣完）。
-  //  - 回收排程以啟動當下的累計本金為基數、固定每週金額；暫停期間新加的倉不併入該排程。
+  //  - 回收排程在「賣出第一筆之前」基數隨最新累計本金更新；賣出第一筆後基數鎖定、固定每週金額，之後新加的倉不併入該排程。
+  //  - 累計本金 = 當前這一輪所有加倉買入金額 - 已回收賣出金額（淨額，即仍留在市場、尚未收回的加倉本金）。
   //  - 排程完成（賣滿週數）時，累計本金扣到「基數 - 已釋放」為零頭則一併結清。
   function deriveAssets(settings, state, ledger) {
     const next = clone(state);
@@ -302,8 +311,11 @@
       const withPrice = rows.filter((e) => e.price > 0 || e.shares > 0);
       const costKnown = withPrice.reduce((s, e) => s + num(e.amount), 0);
       const sharesKnown = withPrice.reduce((s, e) => s + sharesOf(e), 0);
+      const curRows = (ledger || []).filter((e) => e.sym === sym && (e.round || 1) === a.roundId);
       out[sym] = {
         levels: lv, roundId: a.roundId, cumulative: a.cumulative,
+        roundGross: curRows.filter((e) => e.kind === 'add').reduce((s, e) => s + num(e.amount), 0),
+        roundRecovered: curRows.filter((e) => e.kind === 'recovery').reduce((s, e) => s + num(e.amount), 0),
         totalAmount: rows.reduce((s, e) => s + num(e.amount), 0), totalCount: rows.length, backlog: num(a.backlog),
         shares: sharesKnown, avgCost: sharesKnown > 0 ? costKnown / sharesKnown : null,
         sold: (ledger || []).filter((e) => e.sym === sym && e.kind === 'recovery').reduce((s, e) => s + num(e.amount), 0)
@@ -360,12 +372,20 @@
       }
       if (it.recovery) {
         const rc = it.recovery;
+        const rr = a.recovery;
+        // 已建議但沒執行的週數：排程記錄過的建議週三，不含本週，且該週沒有對應的賣出記錄
+        const sells = rows.filter((e) => e.kind === 'recovery' && e.recoveryId === (rr && rr.id));
+        const pending = ((rr && rr.advised) || []).filter((w) => w < wed && !sells.some((e) => weekKey(e.date) === weekKey(w))).length;
         if (rc.status === 'sell') {
           lines.push(doneSell
             ? { kind: 'done', text: '本週三（' + wed + '）已記錄本金回收賣出，不需再賣' }
             : { kind: 'sell', text: '週三（' + wed + '）賣出 ' + m2(rc.amount) + ' 做本金回收（第 ' + rc.week + '/' + rc.of + ' 週），所得匯回現金寶；獲利部分保留' });
+          if (!doneSell && rc.week === 1 && pending > 0) {
+            lines.push({ kind: 'warn', text: '已建議賣出但尚未執行：前 ' + pending + ' 週的建議你都沒賣。排程不會自動往前走，也不補賣；現價高於觸發價 ' + px(rc.trigger) + ' ' + p2(rc.pctAbove) + '，要再等可以繼續等，賣出第一筆後每週金額就鎖定為 ' + m2(rc.amount) });
+          }
+          if (!rc.locked) lines.push({ kind: 'info', text: '回收基數目前跟隨累計本金（' + m2(rc.base) + '），你賣出第一筆後才會鎖定，之後新加的倉不併入這一輪' });
         } else {
-          lines.push({ kind: 'warn', text: '本金回收暫停：現價低於觸發價 ' + px(rc.trigger) + '，本週不賣、不補賣，站回後續接第 ' + rc.week + ' 週' });
+          lines.push({ kind: 'warn', text: '本金回收暫停：現價低於觸發價 ' + px(rc.trigger) + '（還差 ' + p2(-rc.pctAbove) + '），本週不賣、不補賣，站回後續接第 ' + rc.week + ' 週' });
         }
       } else if (a.cumulative > 0) {
         lines.push({ kind: 'info', text: '回升至 ' + px(trigPrice) + '（52 週高 95%，需再漲 ' + p2(trigPrice / it.close - 1) + '）將啟動本金回收，累計本金 ' + m2(a.cumulative) });
@@ -427,7 +447,10 @@
   }
 
   // ───────── 派息 ─────────
-  // 派息記錄 { id, sym, exDate:'YYYY-MM-DD', perShare, source:'manual'|'futu' }（source 預留給日後富途同步）。
+  // 派息記錄 { id, sym, exDate:'YYYY-MM-DD', perShare, source:'manual'|'futu', paidDate?, netReceived? }。
+  // 你只需要填除息日；paidDate（派發日）與 netReceived（實際入帳淨額）由日後富途同步帶入。
+  // 沒有 paidDate 的視為「預計入帳」：先用 持股數 x 每股派息 x (1 - 預扣稅率) 估算並計入統計；
+  // 有 netReceived 的視為「已入帳」：以實際金額取代估算（稅額 = 稅前 - 實收）。
   // 稅前派息 = 除息日「前一個交易日收盤時」的持股數 x 每股派息；香港居民收美股股息預扣 30%。
   // 持股數用 holdingsSummary 同一套規則回推：底倉 + 起算日之後、除息日之前（不含除息日當天）的買賣。
   // 只統計「自統計起始日起（含當天）」的派息：除息日早於起始日的不計（那之前的收益不在這次統計裡）。
@@ -449,14 +472,19 @@
     const rows = (divs || []).filter((d) => d.exDate >= from).map((d) => {
       const shares = sharesBefore(base, buys, d.sym, d.exDate);
       const gross = shares * num(d.perShare);
-      const tax = gross * rate;
-      return { id: d.id, sym: d.sym, exDate: d.exDate, perShare: num(d.perShare), shares, gross, tax, net: gross - tax, source: d.source || 'manual' };
+      const paid = d.netReceived != null && isFinite(d.netReceived);
+      const net = paid ? num(d.netReceived) : gross * (1 - rate);
+      const tax = gross - net;
+      return { id: d.id, sym: d.sym, exDate: d.exDate, perShare: num(d.perShare), shares, gross, tax, net, source: d.source || 'manual', paid, paidDate: d.paidDate || null };
     }).sort((a, b) => (a.exDate < b.exDate ? 1 : a.exDate > b.exDate ? -1 : 0));
     const bySym = {};
     rows.forEach((r) => { const s = bySym[r.sym] || (bySym[r.sym] = { gross: 0, tax: 0, net: 0, n: 0 }); s.gross += r.gross; s.tax += r.tax; s.net += r.net; s.n += 1; });
+    const sum = (arr, k) => arr.reduce((s, r) => s + r[k], 0);
+    const paidRows = rows.filter((r) => r.paid), pendingRows = rows.filter((r) => !r.paid);
     return {
       rows, bySym, rate, from,
-      gross: rows.reduce((s, r) => s + r.gross, 0), tax: rows.reduce((s, r) => s + r.tax, 0), net: rows.reduce((s, r) => s + r.net, 0)
+      gross: sum(rows, 'gross'), tax: sum(rows, 'tax'), net: sum(rows, 'net'),
+      netPaid: sum(paidRows, 'net'), netPending: sum(pendingRows, 'net'), nPaid: paidRows.length, nPending: pendingRows.length
     };
   }
 

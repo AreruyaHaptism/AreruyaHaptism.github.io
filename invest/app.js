@@ -210,16 +210,16 @@
   function vLedger() {
     const s = doc.settings;
     const stats = E.ledgerStats(s, doc.state, ledger);
-    const head = '<tr><th>資產</th>' + s.levels.map((l) => '<th>' + l.id + ' 次數 · 金額</th>').join('') + '<th>本輪累計本金</th><th>欠買</th><th>歷史加倉次數</th><th>歷史加倉總額</th><th>加倉持股</th><th>加倉均價</th><th>已回收賣出</th></tr>';
+    const head = '<tr><th>資產</th>' + s.levels.map((l) => '<th>' + l.id + ' 次數 · 金額</th>').join('') + '<th>本輪加倉總額</th><th>已回收本金</th><th>累計本金（淨額）</th><th>欠買</th><th>歷史加倉次數</th><th>歷史加倉總額</th><th>加倉持股</th><th>加倉均價</th><th>已回收賣出</th></tr>';
     const rows = ADD.map((sym) => {
       const x = stats[sym]; const a = doc.state.assets[sym];
       return '<tr><td><b>' + sym + '</b><div class="inv-note">第 ' + a.roundId + ' 輪</div></td>' +
         s.levels.map((l) => { const c = x.levels[l.id]; return '<td>' + c.count + '/' + c.max + ' · ' + usd0(c.amount) + (c.allCount !== c.count ? '<div class="inv-note">歷史 ' + c.allCount + ' 次 ' + usd0(c.allAmount) + '</div>' : '') + '</td>'; }).join('') +
-        '<td>' + usd0(x.cumulative) + '</td><td class="' + (x.backlog > 0.005 ? 'neg' : 'muted') + '">' + (x.backlog > 0.005 ? usd(x.backlog) : '—') + '</td><td>' + x.totalCount + '</td><td>' + usd0(x.totalAmount) + '</td><td>' + (x.shares ? x.shares.toFixed(3) : '—') + '</td><td>' + (x.avgCost ? usd(x.avgCost) : '—') + '</td><td>' + usd0(x.sold) + '</td></tr>';
+        '<td>' + usd0(x.roundGross) + '</td><td>' + usd0(x.roundRecovered) + '</td><td><b>' + usd0(x.cumulative) + '</b></td><td class="' + (x.backlog > 0.005 ? 'neg' : 'muted') + '">' + (x.backlog > 0.005 ? usd(x.backlog) : '—') + '</td><td>' + x.totalCount + '</td><td>' + usd0(x.totalAmount) + '</td><td>' + (x.shares ? x.shares.toFixed(3) : '—') + '</td><td>' + (x.avgCost ? usd(x.avgCost) : '—') + '</td><td>' + usd0(x.sold) + '</td></tr>';
     }).join('');
     const list = ledger.slice().reverse().map((e) => '<tr><td>' + esc(e.date) + '</td><td><b>' + esc(e.sym) + '</b></td><td>' + (e.kind === 'add' ? '加倉' : '本金回收賣出') + '</td><td>' + esc(e.level || '—') + '</td><td>' + usd(e.amount) + '</td><td>' + (e.price ? usd(e.price) : '—') + '</td><td>' + (e.kind === 'add' && e.base > 0 && e.amount + 0.005 < e.base ? '<span class="neg">短 ' + usd(e.base - e.amount) + '</span>' : '—') + '</td><td>第 ' + esc(e.round || 1) + ' 輪</td><td>' + esc(e.note || '') + '</td><td><button class="inv-btn ghost" data-act="delEntry" data-id="' + esc(e.id) + '">刪除</button></td></tr>').join('');
     return '<div class="inv-card"><h2>加倉統計（由帳本自動計算）</h2><div class="inv-scroll"><table>' + head + rows + '</table></div>' +
-      '<div class="inv-note">各 Level 次數與金額為「當前輪」（創新高後歸零重算）；加倉只針對 QQQ、SMH、VYM、SCHD（SPCX 沒有回撤 Level 規則，它的每月買入記在「月供」頁、盈虧在「持倉盈虧」頁）。小字「歷史」為跨輪累計。每筆買入都算一次；買不足的差額記為「欠買」，下次加倉時自動補上。持股與均價只含加倉部分（且只計有填成交價的記錄），不含月供與既有持倉。</div></div>' +
+      '<div class="inv-note">各 Level 次數與金額為「當前輪」（創新高後歸零重算）；加倉只針對 QQQ、SMH、VYM、SCHD（SPCX 沒有回撤 Level 規則，它的每月買入記在「月供」頁、盈虧在「持倉盈虧」頁）。「累計本金（淨額）」= 本輪加倉總額 - 已回收本金，也就是目前仍留在市場、還沒收回的加倉本金；它決定回收排程的基數與單一資產上限的使用量。小字「歷史」為跨輪累計。每筆買入都算一次；買不足的差額記為「欠買」，下次加倉時自動補上。持股與均價只含加倉部分（且只計有填成交價的記錄），不含月供與既有持倉。</div></div>' +
       '<div class="inv-card"><h2>新增一筆記錄</h2><div class="inv-grid">' +
       '<div><label>日期</label><input type="date" id="m-date" value="' + today() + '"></div>' +
       '<div><label>資產</label><select id="m-sym">' + ADD.map((x) => '<option>' + x + '</option>').join('') + '</select></div>' +
@@ -316,7 +316,7 @@
     const holdPnl = hs.pnl + hs.realized;
     const totalPnl = holdPnl + ds.net;
     const taxPct = (doc.settings.withholding * 100).toFixed(0);
-    const divRows = ds.rows.map((r) => '<tr><td>' + esc(r.exDate) + '</td><td><b>' + esc(r.sym) + '</b></td><td>' + usd(r.perShare) + '</td><td>' + r.shares.toFixed(4) + '</td><td>' + usd(r.gross) + '</td><td class="neg">-' + usd(r.tax) + '</td><td class="pos">' + usd(r.net) + '</td><td>' + (r.source === 'futu' ? '富途' : '手填') + '</td>' +
+    const divRows = ds.rows.map((r) => '<tr><td>' + esc(r.exDate) + '</td><td><b>' + esc(r.sym) + '</b></td><td>' + usd(r.perShare) + '</td><td>' + r.shares.toFixed(4) + '</td><td>' + usd(r.gross) + '</td><td class="neg">-' + usd(r.tax) + '</td><td class="pos">' + usd(r.net) + '</td><td>' + (r.paid ? '<span class="tag funded">已入帳' + (r.paidDate ? ' ' + esc(r.paidDate) : '') + '</span>' : '<span class="tag partial">預計入帳</span>') + '</td><td>' + (r.source === 'futu' ? '富途' : '手填') + '</td>' +
       '<td><button class="inv-btn ghost" data-act="delDiv" data-id="' + esc(r.id) + '">刪除</button></td></tr>').join('');
     const outOfRange = (doc.dividends || []).length - ds.rows.length;
     return '<div class="inv-card"><h2>盈虧總覽</h2>' +
@@ -324,7 +324,7 @@
       '<div class="inv-grid">' +
       stat('僅持倉盈虧', sg(holdPnl), cls(holdPnl)) + stat('派息淨額（扣 ' + taxPct + '% 預扣稅）', sg(ds.net), cls(ds.net)) + stat('總盈虧', sg(totalPnl), cls(totalPnl)) + '</div>' +
       '<div class="inv-grid mt8">' + stat('總市值', usd(hs.totalValue)) + stat('總成本', usd(hs.totalCost)) + stat('持倉報酬率', sp(hs.pnlPct), cls(hs.pnlPct)) +
-      stat('其中：未實現', sg(hs.pnl), cls(hs.pnl)) + stat('其中：已實現（本金回收）', sg(hs.realized), cls(hs.realized)) + stat('派息稅前 / 預扣稅', usd(ds.gross) + ' / ' + usd(ds.tax)) + '</div>' +
+      stat('其中：未實現', sg(hs.pnl), cls(hs.pnl)) + stat('其中：已實現（本金回收）', sg(hs.realized), cls(hs.realized)) + stat('派息稅前 / 預扣稅', usd(ds.gross) + ' / ' + usd(ds.tax)) + stat('其中：已入帳', usd(ds.netPaid) + '（' + ds.nPaid + ' 筆）') + stat('其中：預計待入帳', usd(ds.netPending) + '（' + ds.nPending + ' 筆）') + '</div>' +
       '<div class="inv-note">總盈虧 = 僅持倉盈虧 + 派息淨額。派息只統計 <b>' + esc(doc.divFrom) + '</b> 起（含當天）的除息記錄；僅持倉盈虧不受統計起始日影響，是持倉相對成本的全部盈虧。</div></div>' +
       '<div class="inv-card"><h2>持倉明細（月供 + 加倉 + SPCX + 既有持倉）</h2>' +
       '<div class="inv-scroll mt12"><table><tr><th>資產</th><th>股數</th><th>均價</th><th>最新價</th><th>成本</th><th>市值</th><th>盈虧</th><th>報酬率</th></tr>' + rows + '</table></div>' +
@@ -336,8 +336,8 @@
       '<div><label>除息日</label><input type="date" id="dv-date" value="' + today() + '"></div>' +
       '<div><label>每股派息 (USD)</label><input type="number" step="0.0001" id="dv-ps"></div></div>' +
       '<div class="sp8"></div><button class="inv-btn" data-act="addDiv">新增派息</button>' +
-      '<div class="inv-note">用「除息日前一日收盤時的持股數」乘每股派息得稅前金額，再扣 ' + taxPct + '% 預扣稅。持股數由底倉與之後的買賣記錄自動推算；除息日當天才買入的股數不享有該次派息。每股派息請填稅前金額。</div>' +
-      (divRows ? '<div class="inv-scroll mt12"><table><tr><th>除息日</th><th>資產</th><th>每股</th><th>持股</th><th>稅前</th><th>預扣稅</th><th>稅後淨額</th><th>來源</th><th></th></tr>' + divRows + '</table></div>' : '<div class="inv-note">起始日之後尚無派息記錄。</div>') +
+      '<div class="inv-note">用「除息日前一日收盤時的持股數」乘每股派息得稅前金額，再扣 ' + taxPct + '% 預扣稅。持股數由底倉與之後的買賣記錄自動推算；除息日當天才買入的股數不享有該次派息。每股派息請填稅前金額。你只需填除息日：新增後立刻以預計金額計入統計（標示「預計入帳」）；日後接上富途同步，派發日與實際入帳淨額會自動帶入並取代預計值，不會重複計算。富途帳戶要到派發日才會收到這筆錢，所以派發日之前你的統計會比富途帳面多出「預計待入帳」這一項。</div>' +
+      (divRows ? '<div class="inv-scroll mt12"><table><tr><th>除息日</th><th>資產</th><th>每股</th><th>持股</th><th>稅前</th><th>預扣稅</th><th>稅後淨額</th><th>狀態</th><th>來源</th><th></th></tr>' + divRows + '</table></div>' : '<div class="inv-note">起始日之後尚無派息記錄。</div>') +
       (outOfRange > 0 ? '<div class="inv-note">另有 ' + outOfRange + ' 筆除息日早於起始日，未計入。</div>' : '') + '</div>' +
       '<div class="inv-card"><h2>底倉與最新價</h2><div class="inv-note">底倉填你在富途看到的、截至「起算日」的全部持倉（股數與每股成本價）。系統只會累加起算日<b>之後</b>記錄的月供、加倉與 SPCX，起算日當天及之前的記錄視為已含在底倉內，不會重複計算。最新價與月供頁、指引頁共用。</div>' +
       '<div class="inv-scroll mt8"><table><tr><th>資產</th><th>股數</th><th>每股成本價</th><th>起算日</th><th>最新價</th></tr>' + baseRows + '</table></div>' +
@@ -403,7 +403,7 @@
     return '<div class="inv-card"><h2>帳戶</h2><div class="inv-grid">' + fld('se-cash', '現金寶', st.cash, '0.01') + fld('se-boxx', 'BOXX 市值', st.boxx, '0.01') +
       '<div><label>資料日期</label><input type="date" id="se-asof" value="' + esc(st.asOf) + '"></div></div>' +
       '<div class="inv-scroll mt12"><table><tr><th>資產</th><th>52 週高</th><th>輪次（每創新高 +1）</th><th>本金回收中</th><th>回收基數（累計本金）</th></tr>' + assetRows + '</table></div>' +
-      '<div class="inv-note">Level 次數、累計本金、已回收週數都由帳本計算，無需也無法在此手改；要更正就到「帳本與統計」刪除或補記。</div></div>' +
+      '<div class="inv-note">Level 次數、累計本金（本輪加倉總額減已回收）、已回收週數都由帳本計算，無需也無法在此手改；要更正就到「帳本與統計」刪除或補記。</div></div>' +
       '<div class="inv-card"><h2>規則參數</h2><div class="inv-grid">' +
       fld('se-util', '資金池利用率 (0~1)', s.utilization) + fld('se-cap', '單一資產上限比例 (0~1)', s.assetCapPct) +
       fld('se-locked', '固定流動資金基準（0 = 自動）', s.lockedLiquid || 0, '0.01') +
