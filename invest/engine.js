@@ -380,14 +380,33 @@
   }
 
   // 月供：依目標權重拆分
+  // 本人與配偶各算各的：本人要記錄，配偶只列出每月每檔金額。
+  // 金額四捨五入到分，並把尾差補在權重最大的資產上，確保各檔加總剛好等於月供總額。
+  function splitAmount(total, weights) {
+    const amts = {}; let sum = 0;
+    MONTHLY_ASSETS.forEach((s) => { amts[s] = Math.round(total * weights[s] * 100) / 100; sum += amts[s]; });
+    const diff = Math.round((total - sum) * 100) / 100;
+    if (diff !== 0) {
+      const big = MONTHLY_ASSETS.reduce((a, b) => (weights[b] > weights[a] ? b : a));
+      amts[big] = Math.round((amts[big] + diff) * 100) / 100;
+    }
+    return amts;
+  }
   function monthlyPlan(settings, prices) {
-    const total = num(settings.monthly.user) + num(settings.monthly.spouse);
+    const user = num(settings.monthly.user), spouse = num(settings.monthly.spouse);
+    const ua = splitAmount(user, settings.weights), sa = splitAmount(spouse, settings.weights);
     const rows = MONTHLY_ASSETS.map((sym) => {
-      const amount = total * settings.weights[sym];
       const price = prices && prices[sym] > 0 ? prices[sym] : null;
-      return { sym, weight: settings.weights[sym], amount, price, shares: price ? amount / price : null };
+      return {
+        sym, weight: settings.weights[sym], price,
+        amount: ua[sym], shares: price ? ua[sym] / price : null,            // 本人
+        spouseAmount: sa[sym], spouseShares: price ? sa[sym] / price : null // 配偶（僅供參考）
+      };
     });
-    return { total, rows, spcx: { user: settings.spcx.user, spouse: settings.spcx.spouse, total: settings.spcx.user + settings.spcx.spouse } };
+    return {
+      user, spouse, total: user + spouse, rows,
+      spcx: { user: settings.spcx.user, spouse: settings.spcx.spouse, total: settings.spcx.user + settings.spcx.spouse }
+    };
   }
 
   // 大額入金再平衡：優先補足低於目標的資產，不賣出任何持倉。

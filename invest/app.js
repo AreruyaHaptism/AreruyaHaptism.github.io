@@ -229,19 +229,28 @@
   // ───────── 月供 ─────────
   function vMonthly() {
     const s = doc.settings; const mp = E.monthlyPlan(s, {});
+    const key = today().slice(0, 7);
+    const rec = doc.monthlyDone[key] && typeof doc.monthlyDone[key] === 'object' ? doc.monthlyDone[key] : null;
     const rows = mp.rows.map((r) => {
       const p = doc.prices[r.sym];
-      return '<tr><td><b>' + r.sym + '</b></td><td>' + (r.weight * 100).toFixed(0) + '%</td><td>' + usd(r.amount) + '</td><td><input type="number" step="0.001" id="mp-price-' + r.sym + '" data-monthly="1" data-amount="' + r.amount + '" value="' + (p ? p.price : '') + '"></td><td id="mp-sh-' + r.sym + '">—</td><td id="mp-wh-' + r.sym + '">—</td></tr>';
+      const act = rec && rec.items && rec.items[r.sym];
+      return '<tr><td><b>' + r.sym + '</b></td><td>' + (r.weight * 100).toFixed(0) + '%</td><td>' + usd(r.amount) + '</td>' +
+        '<td><input type="number" step="0.001" id="mp-price-' + r.sym + '" data-monthly="1" data-amount="' + r.amount + '" value="' + (p ? p.price : '') + '"></td>' +
+        '<td id="mp-sh-' + r.sym + '">—</td><td id="mp-wh-' + r.sym + '">—</td>' +
+        '<td><input type="number" step="0.01" id="mp-act-' + r.sym + '" value="' + (act ? act.amount : r.amount) + '"></td></tr>';
     }).join('');
-    const done = Object.keys(doc.monthlyDone).sort().reverse().slice(0, 12).map((k) => '<span class="tag funded">' + esc(k) + '</span>').join(' ');
-    return '<div class="inv-card"><h2>每月 ' + s.monthly.day + ' 日月供</h2><div class="inv-grid">' +
-      '<div class="inv-stat"><span>本人</span><b>' + usd0(s.monthly.user) + '</b></div><div class="inv-stat"><span>配偶</span><b>' + usd0(s.monthly.spouse) + '</b></div><div class="inv-stat"><span>合計</span><b>' + usd0(mp.total) + '</b></div></div>' +
-      '<div class="inv-scroll mt12"><table><tr><th>資產</th><th>目標比例</th><th>金額</th><th>價格</th><th>約可買股數</th><th>整股</th></tr>' + rows + '</table></div>' +
-      '<div class="inv-note">SPCX 屬月供以外的獨立操作：本人每月 <b>' + s.spcx.user + '</b> 股、配偶 <b>' + s.spcx.spouse + '</b> 股，合計 <b>' + mp.spcx.total + '</b> 股（不計入上述百分比）。QQQI、QYLD 為既有持倉，不在月供與加倉範圍。</div>' +
+    const spouseRows = mp.rows.map((r) => '<tr><td><b>' + r.sym + '</b></td><td>' + (r.weight * 100).toFixed(0) + '%</td><td>' + usd(r.spouseAmount) + '</td></tr>').join('');
+    const hist = Object.keys(doc.monthlyDone).sort().reverse().slice(0, 12).map((k) => '<span class="tag funded">' + esc(k) + '</span>').join(' ');
+    return '<div class="inv-card"><h2>本人月供：每月 ' + s.monthly.day + ' 日 ' + usd0(s.monthly.user) + '</h2>' +
+      '<div class="inv-scroll"><table><tr><th>資產</th><th>目標比例</th><th>應買金額</th><th>價格</th><th>約可買股數</th><th>整股</th><th>實際買入金額</th></tr>' + rows + '</table></div>' +
+      '<div class="inv-note">SPCX 屬月供以外的獨立操作：本人每月 <b>' + s.spcx.user + '</b> 股（不計入上述百分比）。QQQI、QYLD 為既有持倉，不在月供與加倉範圍。</div>' +
       '<div class="sp8"></div><button class="inv-btn alt" data-act="fetch" data-target="monthly">自動抓價（選用）</button>' +
       '<div class="inv-grid mt8"><div><label>執行日期</label><input type="date" id="mp-date" value="' + today() + '"></div></div>' +
       '<div class="sp8"></div><button class="inv-btn" data-act="logMonthly">記錄本月月供已執行</button>' +
-      '<div class="inv-note">已記錄月份：' + (done || '尚無') + '</div></div>';
+      '<div class="inv-note">已記錄月份：' + (hist || '尚無') + '</div></div>' +
+      '<div class="inv-card"><h2>配偶月供（僅供參考，不記錄）：每月 ' + usd0(s.monthly.spouse) + '</h2>' +
+      '<div class="inv-scroll"><table><tr><th>資產</th><th>目標比例</th><th>每月買入金額</th></tr>' + spouseRows + '</table></div>' +
+      '<div class="inv-note">SPCX 每月 <b>' + s.spcx.spouse + '</b> 股。這裡只列出每月要買多少，不做記錄與統計。</div></div>';
   }
   function recalcMonthly() {
     document.querySelectorAll('input[data-monthly]').forEach((inp) => {
@@ -401,8 +410,17 @@
     const date = sv('mp-date') || today(); if (!isDate(date)) throw new Error('日期格式不正確'); const key = date.slice(0, 7);
     if (doc.monthlyDone[key] && !confirm(key + ' 已記錄過月供，要覆蓋嗎？')) return;
     const mp = E.monthlyPlan(doc.settings, {});
-    mp.rows.forEach((r) => { const p = nv('mp-price-' + r.sym); if (p > 0) doc.prices[r.sym] = { price: p, date }; });
-    doc.monthlyDone[key] = date; await persist(); msg = { text: key + ' 月供已記錄', cls: 'ok' };
+    // 只記錄本人：每檔實際買入金額與（選填的）成交價；配偶不記錄。
+    const items = {}; let total = 0;
+    mp.rows.forEach((r) => {
+      const amt = nv('mp-act-' + r.sym); const p = nv('mp-price-' + r.sym);
+      if (!(amt >= 0)) throw new Error(r.sym + ' 的實際買入金額無效');
+      if (p > 0) doc.prices[r.sym] = { price: p, date };
+      items[r.sym] = { amount: r2(amt) }; if (p > 0) items[r.sym].price = p;
+      total += amt;
+    });
+    doc.monthlyDone[key] = { date, total: r2(total), items };
+    await persist(); msg = { text: key + ' 本人月供已記錄（合計 ' + usd(total) + '）', cls: 'ok' };
   }
   function doRebalance() {
     const vals = {}; ALL.forEach((s) => { const v = nv('rb-v-' + s); vals[s] = isFinite(v) ? v : 0; });
