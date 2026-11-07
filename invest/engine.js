@@ -26,6 +26,7 @@
     weights: { VYM: 0.32, SCHD: 0.28, QQQ: 0.15, SMH: 0.12, GLD: 0.13 },
     monthly: { user: 1250, spouse: 6250, day: 5 },
     spcxUsd: { user: 200, spouse: 1000 }, // SPCX 為月供以外的獨立定投，以美元金額計（舊欄位 spcx 為股數，已停用）
+    withholding: 0.30,                    // 香港居民收美股股息的預扣稅率
     otherHoldings: ['QQQI', 'QYLD'],      // 既有持倉（不在月供與加倉範圍），只用於持倉盈虧統計
     recovery: { triggerPct: 0.95, weeks: 10, tranchePct: 0.10 },
     lockedLiquid: null,           // 若設定，資金池改用此固定流動資金基準
@@ -425,6 +426,40 @@
     };
   }
 
+  // ───────── 派息 ─────────
+  // 派息記錄 { id, sym, exDate:'YYYY-MM-DD', perShare, source:'manual'|'futu' }（source 預留給日後富途同步）。
+  // 稅前派息 = 除息日「前一個交易日收盤時」的持股數 x 每股派息；香港居民收美股股息預扣 30%。
+  // 持股數用 holdingsSummary 同一套規則回推：底倉 + 起算日之後、除息日之前（不含除息日當天）的買賣。
+  // 只統計「自統計起始日起（含當天）」的派息：除息日早於起始日的不計（那之前的收益不在這次統計裡）。
+  function sharesBefore(base, buys, sym, dateStr) {
+    const b = (base && base[sym]) || {};
+    const since = b.asOf || '0000-00-00';
+    let shares = num(b.shares);
+    (buys || []).filter((e) => e.sym === sym && e.date > since && e.date < dateStr)
+      .sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : (x.ts || 0) - (y.ts || 0))).forEach((e) => {
+        const sh = e.shares > 0 ? e.shares : (e.price > 0 ? e.amount / e.price : 0);
+        if (e.side === 'sell') shares = Math.max(0, shares - sh); else shares += sh;
+      });
+    return shares;
+  }
+  function dividendSummary(base, buys, divs, opts) {
+    opts = opts || {};
+    const rate = opts.withholding != null ? opts.withholding : 0.30;
+    const from = opts.from || '0000-00-00';
+    const rows = (divs || []).filter((d) => d.exDate >= from).map((d) => {
+      const shares = sharesBefore(base, buys, d.sym, d.exDate);
+      const gross = shares * num(d.perShare);
+      const tax = gross * rate;
+      return { id: d.id, sym: d.sym, exDate: d.exDate, perShare: num(d.perShare), shares, gross, tax, net: gross - tax, source: d.source || 'manual' };
+    }).sort((a, b) => (a.exDate < b.exDate ? 1 : a.exDate > b.exDate ? -1 : 0));
+    const bySym = {};
+    rows.forEach((r) => { const s = bySym[r.sym] || (bySym[r.sym] = { gross: 0, tax: 0, net: 0, n: 0 }); s.gross += r.gross; s.tax += r.tax; s.net += r.net; s.n += 1; });
+    return {
+      rows, bySym, rate, from,
+      gross: rows.reduce((s, r) => s + r.gross, 0), tax: rows.reduce((s, r) => s + r.tax, 0), net: rows.reduce((s, r) => s + r.net, 0)
+    };
+  }
+
   // 月供：依目標權重拆分
   // 本人與配偶各算各的：本人要記錄，配偶只列出每月每檔金額。
   // 金額四捨五入到分，並把尾差補在權重最大的資產上，確保各檔加總剛好等於月供總額。
@@ -486,6 +521,6 @@
     ADD_ASSETS, MONTHLY_ASSETS, DEFAULT_SETTINGS,
     initialState, mergeSettings, drawdown, levelIndex, poolInfo,
     review, applyExecutions, monthlyPlan, rebalance,
-    deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary
+    deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary, sharesBefore, dividendSummary
   };
 });

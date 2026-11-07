@@ -75,7 +75,7 @@
       const a = st.assets[s]; a.counts = Object.assign({ L1: 0, L2: 0, L3: 0, L4: 0 }, a.counts); a.recoveryDone = a.recoveryDone || [];
     });
     const inp = Object.assign({ date: null, closes: {}, highs: {}, cash: null, boxx: null, avail: null }, d.inputs || {});
-    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, holdingsBase: d.holdingsBase || {}, values: d.values || {} };
+    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, holdingsBase: d.holdingsBase || {}, dividends: d.dividends || [], divFrom: d.divFrom || today(), values: d.values || {} };
   }
   async function persist() { doc.state.asOf = doc.state.asOf || today(); await store.saveDoc(doc); }
   function rederive() { const r = E.deriveAssets(doc.settings, doc.state, ledger); doc.state = r.state; return r.events; }
@@ -203,7 +203,7 @@
       '<div class="inv-scroll mt12"><table><tr><th>資產</th><th>52 週高（週線收盤，創新高前的舊高點）</th><th>最新價 / 本週收盤</th></tr>' + inputsRows() + '</table></div>' +
       (fdate ? '<div class="inv-note">最新週線日期：' + esc(fdate.date) + '（週中抓取時為當時最新價）</div>' : '') +
       '<div class="sp8"></div><button class="inv-btn" data-act="compute">計算指引</button><button class="inv-btn alt" data-act="fetch" data-target="guide">自動抓價（選用）</button>' +
-      '<div class="inv-note">不抓價也能用：手動填入 52 週高與最新價即可。若最新價高於 52 週高，系統會判定創新高並重置次數。</div></div>' + guideResult();
+      '<div class="inv-note">加倉指引只涵蓋 QQQ、SMH、VYM、SCHD；SPCX、GLD 與 QQQI、QYLD 不在加倉系統內。不抓價也能用：手動填入 52 週高與最新價即可。若最新價高於 52 週高，系統會判定創新高並重置次數。</div></div>' + guideResult();
   }
 
   // ───────── 帳本與統計 ─────────
@@ -219,7 +219,7 @@
     }).join('');
     const list = ledger.slice().reverse().map((e) => '<tr><td>' + esc(e.date) + '</td><td><b>' + esc(e.sym) + '</b></td><td>' + (e.kind === 'add' ? '加倉' : '本金回收賣出') + '</td><td>' + esc(e.level || '—') + '</td><td>' + usd(e.amount) + '</td><td>' + (e.price ? usd(e.price) : '—') + '</td><td>' + (e.kind === 'add' && e.base > 0 && e.amount + 0.005 < e.base ? '<span class="neg">短 ' + usd(e.base - e.amount) + '</span>' : '—') + '</td><td>第 ' + esc(e.round || 1) + ' 輪</td><td>' + esc(e.note || '') + '</td><td><button class="inv-btn ghost" data-act="delEntry" data-id="' + esc(e.id) + '">刪除</button></td></tr>').join('');
     return '<div class="inv-card"><h2>加倉統計（由帳本自動計算）</h2><div class="inv-scroll"><table>' + head + rows + '</table></div>' +
-      '<div class="inv-note">各 Level 次數與金額為「當前輪」（創新高後歸零重算）；小字「歷史」為跨輪累計。每筆買入都算一次；買不足的差額記為「欠買」，下次加倉時自動補上。持股與均價只含加倉部分（且只計有填成交價的記錄），不含月供與既有持倉。</div></div>' +
+      '<div class="inv-note">各 Level 次數與金額為「當前輪」（創新高後歸零重算）；加倉只針對 QQQ、SMH、VYM、SCHD（SPCX 沒有回撤 Level 規則，它的每月買入記在「月供」頁、盈虧在「持倉盈虧」頁）。小字「歷史」為跨輪累計。每筆買入都算一次；買不足的差額記為「欠買」，下次加倉時自動補上。持股與均價只含加倉部分（且只計有填成交價的記錄），不含月供與既有持倉。</div></div>' +
       '<div class="inv-card"><h2>新增一筆記錄</h2><div class="inv-grid">' +
       '<div><label>日期</label><input type="date" id="m-date" value="' + today() + '"></div>' +
       '<div><label>資產</label><select id="m-sym">' + ADD.map((x) => '<option>' + x + '</option>').join('') + '</select></div>' +
@@ -311,14 +311,55 @@
     const warn = [];
     if (hs.missingPrice.length) warn.push('以下資產沒有最新價，未計入市值與盈虧：' + hs.missingPrice.join('、'));
     if (hs.unpriced > 0) warn.push('有 ' + usd(hs.unpriced) + ' 的買入沒填成交價，無法換算股數，未計入持倉（請到月供頁或帳本補填價格）');
-    return '<div class="inv-card"><h2>持倉總覽（月供 + 加倉 + SPCX + 既有持倉）</h2>' +
+    // 三種盈虧：僅持倉盈虧（未實現 + 本金回收已實現）、派息淨額（扣預扣稅）、總盈虧
+    const ds = E.dividendSummary(base, buyFlow(), doc.dividends, { from: doc.divFrom, withholding: doc.settings.withholding });
+    const holdPnl = hs.pnl + hs.realized;
+    const totalPnl = holdPnl + ds.net;
+    const taxPct = (doc.settings.withholding * 100).toFixed(0);
+    const divRows = ds.rows.map((r) => '<tr><td>' + esc(r.exDate) + '</td><td><b>' + esc(r.sym) + '</b></td><td>' + usd(r.perShare) + '</td><td>' + r.shares.toFixed(4) + '</td><td>' + usd(r.gross) + '</td><td class="neg">-' + usd(r.tax) + '</td><td class="pos">' + usd(r.net) + '</td><td>' + (r.source === 'futu' ? '富途' : '手填') + '</td>' +
+      '<td><button class="inv-btn ghost" data-act="delDiv" data-id="' + esc(r.id) + '">刪除</button></td></tr>').join('');
+    const outOfRange = (doc.dividends || []).length - ds.rows.length;
+    return '<div class="inv-card"><h2>盈虧總覽</h2>' +
       (warn.length ? banner(esc(warn.join('；'))) : '') +
-      '<div class="inv-grid">' + stat('總市值', usd(hs.totalValue)) + stat('總成本', usd(hs.totalCost)) + stat('總盈虧', sg(hs.pnl), cls(hs.pnl)) + stat('總報酬率', sp(hs.pnlPct), cls(hs.pnlPct)) + stat('已實現（本金回收）', sg(hs.realized), cls(hs.realized)) + '</div>' +
+      '<div class="inv-grid">' +
+      stat('僅持倉盈虧', sg(holdPnl), cls(holdPnl)) + stat('派息淨額（扣 ' + taxPct + '% 預扣稅）', sg(ds.net), cls(ds.net)) + stat('總盈虧', sg(totalPnl), cls(totalPnl)) + '</div>' +
+      '<div class="inv-grid mt8">' + stat('總市值', usd(hs.totalValue)) + stat('總成本', usd(hs.totalCost)) + stat('持倉報酬率', sp(hs.pnlPct), cls(hs.pnlPct)) +
+      stat('其中：未實現', sg(hs.pnl), cls(hs.pnl)) + stat('其中：已實現（本金回收）', sg(hs.realized), cls(hs.realized)) + stat('派息稅前 / 預扣稅', usd(ds.gross) + ' / ' + usd(ds.tax)) + '</div>' +
+      '<div class="inv-note">總盈虧 = 僅持倉盈虧 + 派息淨額。派息只統計 <b>' + esc(doc.divFrom) + '</b> 起（含當天）的除息記錄；僅持倉盈虧不受統計起始日影響，是持倉相對成本的全部盈虧。</div></div>' +
+      '<div class="inv-card"><h2>持倉明細（月供 + 加倉 + SPCX + 既有持倉）</h2>' +
       '<div class="inv-scroll mt12"><table><tr><th>資產</th><th>股數</th><th>均價</th><th>最新價</th><th>成本</th><th>市值</th><th>盈虧</th><th>報酬率</th></tr>' + rows + '</table></div>' +
       '<div class="inv-note">總盈虧只含「有最新價」的資產。已實現盈虧來自本金回收的賣出（平均成本法），不含在上面的未實現總盈虧內。</div></div>' +
+      '<div class="inv-card"><h2>派息記錄（預扣 ' + taxPct + '%）</h2>' +
+      '<div class="inv-grid"><div><label>統計起始日（只計此日起的除息）</label><input type="date" id="dv-from" value="' + esc(doc.divFrom) + '"></div></div>' +
+      '<div class="sp8"></div><button class="inv-btn alt" data-act="saveDivFrom">更新起始日</button>' +
+      '<div class="inv-grid mt12"><div><label>資產</label><select id="dv-sym">' + syms.map((x) => '<option>' + x + '</option>').join('') + '</select></div>' +
+      '<div><label>除息日</label><input type="date" id="dv-date" value="' + today() + '"></div>' +
+      '<div><label>每股派息 (USD)</label><input type="number" step="0.0001" id="dv-ps"></div></div>' +
+      '<div class="sp8"></div><button class="inv-btn" data-act="addDiv">新增派息</button>' +
+      '<div class="inv-note">用「除息日前一日收盤時的持股數」乘每股派息得稅前金額，再扣 ' + taxPct + '% 預扣稅。持股數由底倉與之後的買賣記錄自動推算；除息日當天才買入的股數不享有該次派息。每股派息請填稅前金額。</div>' +
+      (divRows ? '<div class="inv-scroll mt12"><table><tr><th>除息日</th><th>資產</th><th>每股</th><th>持股</th><th>稅前</th><th>預扣稅</th><th>稅後淨額</th><th>來源</th><th></th></tr>' + divRows + '</table></div>' : '<div class="inv-note">起始日之後尚無派息記錄。</div>') +
+      (outOfRange > 0 ? '<div class="inv-note">另有 ' + outOfRange + ' 筆除息日早於起始日，未計入。</div>' : '') + '</div>' +
       '<div class="inv-card"><h2>底倉與最新價</h2><div class="inv-note">底倉填你在富途看到的、截至「起算日」的全部持倉（股數與每股成本價）。系統只會累加起算日<b>之後</b>記錄的月供、加倉與 SPCX，起算日當天及之前的記錄視為已含在底倉內，不會重複計算。最新價與月供頁、指引頁共用。</div>' +
       '<div class="inv-scroll mt8"><table><tr><th>資產</th><th>股數</th><th>每股成本價</th><th>起算日</th><th>最新價</th></tr>' + baseRows + '</table></div>' +
       '<div class="sp8"></div><button class="inv-btn" data-act="savePositions">儲存底倉與最新價</button><button class="inv-btn alt" data-act="fetch" data-target="positions">自動抓價（選用）</button></div>';
+  }
+
+
+  async function doAddDiv() {
+    const sym = sv('dv-sym'), exDate = sv('dv-date'), ps = nv('dv-ps');
+    if (!posSyms().includes(sym)) throw new Error('資產無效'); if (!isDate(exDate)) throw new Error('除息日格式不正確');
+    if (!(ps > 0)) throw new Error('每股派息必須大於 0');
+    if ((doc.dividends || []).some((d) => d.sym === sym && d.exDate === exDate) && !confirm(sym + ' 在 ' + exDate + ' 已有一筆派息，仍要新增嗎？')) return;
+    doc.dividends = (doc.dividends || []).concat([{ id: newId(), sym, exDate, perShare: ps, source: 'manual' }]);
+    await persist(); msg = { text: sym + ' ' + exDate + ' 派息已記錄', cls: 'ok' };
+  }
+  async function doDelDiv(id) {
+    if (!confirm('刪除這筆派息？')) return;
+    doc.dividends = (doc.dividends || []).filter((d) => d.id !== id); await persist(); msg = { text: '已刪除', cls: 'ok' };
+  }
+  async function doSaveDivFrom() {
+    const d = sv('dv-from'); if (!isDate(d)) throw new Error('起始日格式不正確');
+    doc.divFrom = d; await persist(); msg = { text: '統計起始日已更新為 ' + d, cls: 'ok' };
   }
 
   async function doSavePositions() {
@@ -369,7 +410,7 @@
       fld('se-rtrig', '回收觸發價比例', s.recovery.triggerPct) + fld('se-rweeks', '回收週數', s.recovery.weeks, '1') + fld('se-rtr', '每週賣出比例', s.recovery.tranchePct) + '</div>' +
       '<div class="inv-grid mt10">' + ALL.map((a) => fld('se-w-' + a, a + ' 目標比例', s.weights[a])).join('') + '</div>' +
       '<div class="inv-grid mt10">' + fld('se-mu', '月供：本人 (USD)', s.monthly.user, '0.01') + fld('se-ms', '月供：配偶 (USD)', s.monthly.spouse, '0.01') + fld('se-md', '月供日', s.monthly.day, '1') +
-      fld('se-spu', 'SPCX 本人每月 (USD)', s.spcxUsd.user, '0.01') + fld('se-sps', 'SPCX 配偶每月 (USD)', s.spcxUsd.spouse, '0.01') + '</div>' +
+      fld('se-spu', 'SPCX 本人每月 (USD)', s.spcxUsd.user, '0.01') + fld('se-sps', 'SPCX 配偶每月 (USD)', s.spcxUsd.spouse, '0.01') + fld('se-wh', '股息預扣稅率 (0~1，香港居民美股為 0.30)', s.withholding) + '</div>' +
       '<div class="inv-grid wide mt10"><div><label>Twelve Data API 金鑰（選用，只存在你的私有雲端文件）</label><input type="password" id="se-key" value="' + esc(s.apiKey) + '" autocomplete="off"></div></div>' +
       '<div class="sp8"></div><button class="inv-btn" data-act="saveSettings">儲存設定</button></div>' +
       '<div class="inv-card"><h2>備份</h2><button class="inv-btn alt" data-act="export">匯出 JSON</button><label class="inv-btn ghost inv-file">匯入 JSON<input type="file" id="se-import" accept=".json"></label>' +
@@ -512,7 +553,8 @@
     let sum = 0; ALL.forEach((a) => { s.weights[a] = need('se-w-' + a, a + ' 目標比例'); sum += s.weights[a]; });
     if (Math.abs(sum - 1) > 0.001) throw new Error('目標比例合計必須為 100%（目前 ' + (sum * 100).toFixed(1) + '%）');
     s.monthly.user = need('se-mu', '本人月供'); s.monthly.spouse = need('se-ms', '配偶月供'); s.monthly.day = need('se-md', '月供日');
-    s.spcxUsd.user = need('se-spu', 'SPCX 本人'); s.spcxUsd.spouse = need('se-sps', 'SPCX 配偶'); s.apiKey = sv('se-key');
+    s.spcxUsd.user = need('se-spu', 'SPCX 本人'); s.spcxUsd.spouse = need('se-sps', 'SPCX 配偶');
+    s.withholding = need('se-wh', '預扣稅率'); if (s.withholding < 0 || s.withholding >= 1) throw new Error('預扣稅率必須介於 0 與 1 之間（不含 1）'); s.apiKey = sv('se-key');
     st.cash = need('se-cash', '現金寶'); st.boxx = need('se-boxx', 'BOXX'); st.asOf = sv('se-asof') || st.asOf;
     ADD.forEach((sym) => {
       const a = st.assets[sym]; a.high52 = need('se-high-' + sym, sym + ' 52 週高'); a.roundId = Math.max(1, Math.round(need('se-round-' + sym, sym + ' 輪次')));
@@ -546,6 +588,9 @@
         case 'delEntry': await doDelEntry(ds.id); break;
         case 'logMonthly': await doLogMonthly(); break;
         case 'savePositions': await doSavePositions(); break;
+        case 'addDiv': await doAddDiv(); break;
+        case 'delDiv': await doDelDiv(ds.id); break;
+        case 'saveDivFrom': await doSaveDivFrom(); break;
         case 'rebalance': doRebalance(); break;
         case 'saveSettings': await doSaveSettings(); break;
         case 'export': doExport(); return;
