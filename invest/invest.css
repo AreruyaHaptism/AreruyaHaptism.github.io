@@ -71,3 +71,5 @@ body.inv-page { margin: 0; background: #0A0C10; font-family: 'Microsoft YaHei', 
 #panel-invest .inv-file input { display: none; }
 @media (max-width: 700px) { #panel-invest .inv-rec { grid-template-columns: 1fr 1fr; } }
 #panel-invest .tag.partial { color: #e0a030; border-color: rgba(224,160,48,0.5); }
+#panel-invest .inv-stat b.pos { color: var(--gn-teal); }
+#panel-invest .inv-stat b.neg { color: #e74c3c; }

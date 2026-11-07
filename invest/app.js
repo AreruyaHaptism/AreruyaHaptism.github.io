@@ -75,7 +75,7 @@
       const a = st.assets[s]; a.counts = Object.assign({ L1: 0, L2: 0, L3: 0, L4: 0 }, a.counts); a.recoveryDone = a.recoveryDone || [];
     });
     const inp = Object.assign({ date: null, closes: {}, highs: {}, cash: null, boxx: null, avail: null }, d.inputs || {});
-    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, values: d.values || {} };
+    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, holdingsBase: d.holdingsBase || {}, values: d.values || {} };
   }
   async function persist() { doc.state.asOf = doc.state.asOf || today(); await store.saveDoc(doc); }
   function rederive() { const r = E.deriveAssets(doc.settings, doc.state, ledger); doc.state = r.state; return r.events; }
@@ -84,7 +84,15 @@
   async function fetchWeekly(key, syms) {
     const url = 'https://api.twelvedata.com/time_series?symbol=' + syms.join(',') + '&interval=1week&outputsize=53&apikey=' + encodeURIComponent(key);
     const res = await fetch(url); const j = await res.json();
-    if (j.status === 'error' && j.message) throw new Error(j.message);
+    if (j.status === 'error' && j.message) {
+      // 批次整批被拒（常見：其中一個代號行情源沒有）時，改成逐檔抓，讓抓得到的照常更新；金鑰錯誤則直接回報
+      if (syms.length > 1 && !/api ?key|apikey|credits|limit/i.test(j.message)) {
+        const out = {};
+        for (const s of syms) { try { Object.assign(out, await fetchWeekly(key, [s])); } catch (e) { out[s] = { error: e.message }; } }
+        return out;
+      }
+      throw new Error(j.message);
+    }
     const out = {};
     syms.forEach((sym) => {
       const x = syms.length === 1 ? j : j[sym];
@@ -97,7 +105,7 @@
   }
 
   // ───────── 畫面骨架 ─────────
-  const VIEWS = [['guide', '操作指引'], ['ledger', '帳本與統計'], ['monthly', '月供'], ['rebalance', '再平衡'], ['settings', '設定']];
+  const VIEWS = [['guide', '操作指引'], ['ledger', '帳本與統計'], ['monthly', '月供'], ['positions', '持倉盈虧'], ['rebalance', '再平衡'], ['settings', '設定']];
 
   function render() {
     const el = $('invest-root'); if (!el) return;
@@ -106,7 +114,7 @@
     if (!doc) { el.innerHTML = '<div class="inv-card">' + banner(esc(msg ? msg.text : '無法載入資料'), 'err') + '<button class="inv-btn ghost" data-act="logout">登出</button></div>'; return; }
     const who = mode === 'cloud' ? esc(user.email) : '本機測試模式';
     let body = '';
-    try { body = ({ guide: vGuide, ledger: vLedger, monthly: vMonthly, rebalance: vRebalance, settings: vSettings })[view](); }
+    try { body = ({ guide: vGuide, ledger: vLedger, monthly: vMonthly, positions: vPositions, rebalance: vRebalance, settings: vSettings })[view](); }
     catch (e) { body = banner('畫面錯誤：' + esc(e.message), 'err'); }
     el.innerHTML =
       '<div class="inv-card"><div class="inv-head"><div><h1>月供投資計劃</h1><div class="inv-sub">資料截至 ' + esc(doc.state.asOf) + ' · ' + who + '</div></div>' +
@@ -227,30 +235,34 @@
   }
 
   // ───────── 月供 ─────────
+  // 本人月供要記錄的資產：月供五檔 + SPCX（獨立定投，不計入月供比例）
+  const MP_SYMS = ALL.concat(['SPCX']);
   function vMonthly() {
     const s = doc.settings; const mp = E.monthlyPlan(s, {});
     const key = today().slice(0, 7);
     const rec = doc.monthlyDone[key] && typeof doc.monthlyDone[key] === 'object' ? doc.monthlyDone[key] : null;
-    const rows = mp.rows.map((r) => {
-      const p = doc.prices[r.sym];
-      const act = rec && rec.items && rec.items[r.sym];
-      return '<tr><td><b>' + r.sym + '</b></td><td>' + (r.weight * 100).toFixed(0) + '%</td><td>' + usd(r.amount) + '</td>' +
-        '<td><input type="number" step="0.001" id="mp-price-' + r.sym + '" data-monthly="1" data-amount="' + r.amount + '" value="' + (p ? p.price : '') + '"></td>' +
-        '<td id="mp-sh-' + r.sym + '">—</td><td id="mp-wh-' + r.sym + '">—</td>' +
-        '<td><input type="number" step="0.01" id="mp-act-' + r.sym + '" value="' + (act ? act.amount : r.amount) + '"></td></tr>';
-    }).join('');
-    const spouseRows = mp.rows.map((r) => '<tr><td><b>' + r.sym + '</b></td><td>' + (r.weight * 100).toFixed(0) + '%</td><td>' + usd(r.spouseAmount) + '</td></tr>').join('');
+    const line = (sym, label, due, weightTxt) => {
+      const p = doc.prices[sym]; const act = rec && rec.items && rec.items[sym];
+      return '<tr><td><b>' + sym + '</b>' + (label || '') + '</td><td>' + weightTxt + '</td><td>' + usd(due) + '</td>' +
+        '<td><input type="number" step="0.001" id="mp-price-' + sym + '" data-monthly="1" data-amount="' + due + '" value="' + (p ? p.price : '') + '"></td>' +
+        '<td id="mp-sh-' + sym + '">—</td><td id="mp-wh-' + sym + '">—</td>' +
+        '<td><input type="number" step="0.01" id="mp-act-' + sym + '" value="' + (act ? act.amount : due) + '"></td></tr>';
+    };
+    const rows = mp.rows.map((r) => line(r.sym, '', r.amount, (r.weight * 100).toFixed(0) + '%')).join('') +
+      line('SPCX', '<div class="inv-note">月供以外的獨立定投</div>', s.spcxUsd.user, '不計入');
+    const spouseRows = mp.rows.map((r) => '<tr><td><b>' + r.sym + '</b></td><td>' + (r.weight * 100).toFixed(0) + '%</td><td>' + usd(r.spouseAmount) + '</td></tr>').join('') +
+      '<tr><td><b>SPCX</b><div class="inv-note">月供以外的獨立定投</div></td><td>不計入</td><td>' + usd(s.spcxUsd.spouse) + '</td></tr>';
     const hist = Object.keys(doc.monthlyDone).sort().reverse().slice(0, 12).map((k) => '<span class="tag funded">' + esc(k) + '</span>').join(' ');
-    return '<div class="inv-card"><h2>本人月供：每月 ' + s.monthly.day + ' 日 ' + usd0(s.monthly.user) + '</h2>' +
-      '<div class="inv-scroll"><table><tr><th>資產</th><th>目標比例</th><th>應買金額</th><th>價格</th><th>約可買股數</th><th>整股</th><th>實際買入金額</th></tr>' + rows + '</table></div>' +
-      '<div class="inv-note">SPCX 屬月供以外的獨立操作：本人每月 <b>' + usd0(s.spcxUsd.user) + '</b>（不計入上述百分比）。QQQI、QYLD 為既有持倉，不在月供與加倉範圍。</div>' +
+    return '<div class="inv-card"><h2>本人月供：每月 ' + s.monthly.day + ' 日 ' + usd0(s.monthly.user) + '，另加 SPCX ' + usd0(s.spcxUsd.user) + '</h2>' +
+      '<div class="inv-scroll"><table><tr><th>資產</th><th>目標比例</th><th>應買金額</th><th>成交價</th><th>約可買股數</th><th>整股</th><th>實際買入金額</th></tr>' + rows + '</table></div>' +
+      '<div class="inv-note">填「成交價」才會把這次買入計入持倉與盈虧（金額 ÷ 成交價 = 股數）；沒填價格只記金額，持倉頁會標示為待定投入。QQQI、QYLD 為既有持倉，不在月供與加倉範圍。</div>' +
       '<div class="sp8"></div><button class="inv-btn alt" data-act="fetch" data-target="monthly">自動抓價（選用）</button>' +
       '<div class="inv-grid mt8"><div><label>執行日期</label><input type="date" id="mp-date" value="' + today() + '"></div></div>' +
       '<div class="sp8"></div><button class="inv-btn" data-act="logMonthly">記錄本月月供已執行</button>' +
       '<div class="inv-note">已記錄月份：' + (hist || '尚無') + '</div></div>' +
-      '<div class="inv-card"><h2>配偶月供（僅供參考，不記錄）：每月 ' + usd0(s.monthly.spouse) + '</h2>' +
+      '<div class="inv-card"><h2>配偶月供（僅供參考，不記錄）：每月 ' + usd0(s.monthly.spouse) + '，另加 SPCX ' + usd0(s.spcxUsd.spouse) + '</h2>' +
       '<div class="inv-scroll"><table><tr><th>資產</th><th>目標比例</th><th>每月買入金額</th></tr>' + spouseRows + '</table></div>' +
-      '<div class="inv-note">SPCX 每月 <b>' + usd0(s.spcxUsd.spouse) + '</b>。這裡只列出每月要買多少，不做記錄與統計。</div></div>';
+      '<div class="inv-note">這裡只列出每月要買多少，不做記錄與統計。</div></div>';
   }
   function recalcMonthly() {
     document.querySelectorAll('input[data-monthly]').forEach((inp) => {
@@ -258,6 +270,69 @@
       $('mp-sh-' + sym).textContent = p > 0 ? (amt / p).toFixed(3) : '—';
       $('mp-wh-' + sym).textContent = p > 0 ? Math.floor(amt / p) + '（剩 ' + usd(amt - Math.floor(amt / p) * p) + '）' : '—';
     });
+  }
+
+  // ───────── 持倉與盈虧 ─────────
+  // 底倉 = 你在富途看到的、截至「起算日」的全部持倉；起算日之後記錄的月供、加倉、SPCX 才會累加。
+  const POS_BASE = ALL.concat(['SPCX']);
+  function posSyms() { return POS_BASE.concat((doc.settings.otherHoldings || []).filter((x) => !POS_BASE.includes(x))); }
+  // 把月供記錄與加倉帳本統一成買賣流水，供 holdingsSummary 累加
+  function buyFlow() {
+    const out = [];
+    Object.keys(doc.monthlyDone).forEach((k) => {
+      const m = doc.monthlyDone[k]; if (!m || typeof m !== 'object' || !m.items) return;
+      Object.keys(m.items).forEach((sym) => { const it = m.items[sym]; if (it.amount > 0) out.push({ sym, date: m.date, amount: it.amount, price: it.price, ts: 0, src: 'monthly' }); });
+    });
+    ledger.forEach((e) => out.push({ sym: e.sym, date: e.date, amount: e.amount, price: e.price, shares: e.shares, side: e.kind === 'recovery' ? 'sell' : 'buy', ts: e.ts || 0, src: 'ledger' }));
+    return out;
+  }
+  function priceMap() { const m = {}; Object.keys(doc.prices).forEach((k) => { m[k] = doc.prices[k].price; }); return m; }
+
+  function vPositions() {
+    const syms = posSyms();
+    const base = doc.holdingsBase || {};
+    const hs = E.holdingsSummary(base, buyFlow(), priceMap(), { syms });
+    const cls = (n) => (n == null ? 'muted' : n >= 0 ? 'pos' : 'neg');
+    const sg = (n) => (n == null ? '—' : (n >= 0 ? '+' : '-') + usd(Math.abs(n)));
+    const sp = (n) => (n == null ? '—' : (n >= 0 ? '+' : '') + (n * 100).toFixed(2) + '%');
+    const stat = (l, v, c) => '<div class="inv-stat"><span>' + l + '</span><b class="' + (c || '') + '">' + v + '</b></div>';
+    const rows = hs.rows.map((r) => {
+      const b = base[r.sym] || {};
+      return '<tr><td><b>' + r.sym + '</b>' + (r.unpricedN ? '<div class="inv-note neg">' + r.unpricedN + ' 筆沒填成交價（' + usd(r.unpriced) + '）未計入</div>' : '') + '</td>' +
+        '<td>' + (r.shares ? r.shares.toFixed(4) : '—') + '</td><td>' + (r.avgCost ? usd(r.avgCost) : '—') + '</td><td>' + (r.price != null ? usd(r.price) : '<span class="neg">未填</span>') + '</td>' +
+        '<td>' + usd(r.cost) + '</td><td>' + (r.value != null ? usd(r.value) : '—') + '</td>' +
+        '<td class="' + cls(r.pnl) + '">' + sg(r.pnl) + '</td><td class="' + cls(r.pnlPct) + '">' + sp(r.pnlPct) + '</td></tr>';
+    }).join('');
+    const baseRows = syms.map((sym) => { const b = base[sym] || {};
+      return '<tr><td><b>' + sym + '</b></td><td><input type="number" step="0.0001" id="pb-sh-' + sym + '" value="' + (b.shares != null ? b.shares : '') + '"></td>' +
+        '<td><input type="number" step="0.0001" id="pb-cost-' + sym + '" value="' + (b.cost != null ? b.cost : '') + '"></td>' +
+        '<td><input type="date" id="pb-asof-' + sym + '" value="' + esc(b.asOf || '') + '"></td>' +
+        '<td><input type="number" step="0.001" id="pp-' + sym + '" value="' + (doc.prices[sym] ? doc.prices[sym].price : '') + '"></td></tr>'; }).join('');
+    const warn = [];
+    if (hs.missingPrice.length) warn.push('以下資產沒有最新價，未計入市值與盈虧：' + hs.missingPrice.join('、'));
+    if (hs.unpriced > 0) warn.push('有 ' + usd(hs.unpriced) + ' 的買入沒填成交價，無法換算股數，未計入持倉（請到月供頁或帳本補填價格）');
+    return '<div class="inv-card"><h2>持倉總覽（月供 + 加倉 + SPCX + 既有持倉）</h2>' +
+      (warn.length ? banner(esc(warn.join('；'))) : '') +
+      '<div class="inv-grid">' + stat('總市值', usd(hs.totalValue)) + stat('總成本', usd(hs.totalCost)) + stat('總盈虧', sg(hs.pnl), cls(hs.pnl)) + stat('總報酬率', sp(hs.pnlPct), cls(hs.pnlPct)) + stat('已實現（本金回收）', sg(hs.realized), cls(hs.realized)) + '</div>' +
+      '<div class="inv-scroll mt12"><table><tr><th>資產</th><th>股數</th><th>均價</th><th>最新價</th><th>成本</th><th>市值</th><th>盈虧</th><th>報酬率</th></tr>' + rows + '</table></div>' +
+      '<div class="inv-note">總盈虧只含「有最新價」的資產。已實現盈虧來自本金回收的賣出（平均成本法），不含在上面的未實現總盈虧內。</div></div>' +
+      '<div class="inv-card"><h2>底倉與最新價</h2><div class="inv-note">底倉填你在富途看到的、截至「起算日」的全部持倉（股數與每股成本價）。系統只會累加起算日<b>之後</b>記錄的月供、加倉與 SPCX，起算日當天及之前的記錄視為已含在底倉內，不會重複計算。最新價與月供頁、指引頁共用。</div>' +
+      '<div class="inv-scroll mt8"><table><tr><th>資產</th><th>股數</th><th>每股成本價</th><th>起算日</th><th>最新價</th></tr>' + baseRows + '</table></div>' +
+      '<div class="sp8"></div><button class="inv-btn" data-act="savePositions">儲存底倉與最新價</button><button class="inv-btn alt" data-act="fetch" data-target="positions">自動抓價（選用）</button></div>';
+  }
+
+  async function doSavePositions() {
+    const base = {}, syms = posSyms(); const bad = [];
+    syms.forEach((sym) => {
+      const sh = nv('pb-sh-' + sym), cost = nv('pb-cost-' + sym), asOf = sv('pb-asof-' + sym), pr = nv('pp-' + sym);
+      if (isFinite(sh) && sh > 0) {
+        if (!(cost >= 0)) bad.push(sym + ' 缺每股成本價'); else if (!isDate(asOf)) bad.push(sym + ' 缺起算日');
+        else base[sym] = { shares: sh, cost, asOf };
+      } else if (isFinite(cost) && cost > 0) bad.push(sym + ' 有成本價但沒有股數');
+      if (pr > 0) doc.prices[sym] = { price: pr, date: today() };
+    });
+    if (bad.length) throw new Error('底倉資料不完整：' + bad.join('；'));
+    doc.holdingsBase = base; await persist(); msg = { text: '底倉與最新價已儲存', cls: 'ok' };
   }
 
   // ───────── 再平衡 ─────────
@@ -341,7 +416,7 @@
 
   async function doFetch(target) {
     const key = doc.settings.apiKey; if (!key) throw new Error('請先到「設定」填入 Twelve Data API 金鑰，或改用手動輸入');
-    const syms = target === 'monthly' ? ALL : ADD;
+    const syms = target === 'monthly' ? MP_SYMS : target === 'positions' ? posSyms() : ADD;
     fetched = Object.assign(fetched || {}, await fetchWeekly(key, syms));
     const bad = syms.filter((k) => fetched[k] && fetched[k].error);
     syms.forEach((s) => { if (fetched[s] && fetched[s].close) doc.prices[s] = { price: fetched[s].close, date: fetched[s].date }; });
@@ -409,18 +484,17 @@
   async function doLogMonthly() {
     const date = sv('mp-date') || today(); if (!isDate(date)) throw new Error('日期格式不正確'); const key = date.slice(0, 7);
     if (doc.monthlyDone[key] && !confirm(key + ' 已記錄過月供，要覆蓋嗎？')) return;
-    const mp = E.monthlyPlan(doc.settings, {});
-    // 只記錄本人：每檔實際買入金額與（選填的）成交價；配偶不記錄。
+    // 只記錄本人：月供五檔 + SPCX 的實際買入金額與（選填的）成交價；配偶不記錄。
     const items = {}; let total = 0;
-    mp.rows.forEach((r) => {
-      const amt = nv('mp-act-' + r.sym); const p = nv('mp-price-' + r.sym);
-      if (!(amt >= 0)) throw new Error(r.sym + ' 的實際買入金額無效');
-      if (p > 0) doc.prices[r.sym] = { price: p, date };
-      items[r.sym] = { amount: r2(amt) }; if (p > 0) items[r.sym].price = p;
+    MP_SYMS.forEach((sym) => {
+      const amt = nv('mp-act-' + sym); const p = nv('mp-price-' + sym);
+      if (!(amt >= 0)) throw new Error(sym + ' 的實際買入金額無效');
+      if (p > 0) doc.prices[sym] = { price: p, date };
+      items[sym] = { amount: r2(amt) }; if (p > 0) items[sym].price = p;
       total += amt;
     });
     doc.monthlyDone[key] = { date, total: r2(total), items };
-    await persist(); msg = { text: key + ' 本人月供已記錄（合計 ' + usd(total) + '）', cls: 'ok' };
+    await persist(); msg = { text: key + ' 本人月供已記錄（含 SPCX，合計 ' + usd(total) + '）', cls: 'ok' };
   }
   function doRebalance() {
     const vals = {}; ALL.forEach((s) => { const v = nv('rb-v-' + s); vals[s] = isFinite(v) ? v : 0; });
@@ -471,6 +545,7 @@
         case 'addEntry': await doAddEntry(); break;
         case 'delEntry': await doDelEntry(ds.id); break;
         case 'logMonthly': await doLogMonthly(); break;
+        case 'savePositions': await doSavePositions(); break;
         case 'rebalance': doRebalance(); break;
         case 'saveSettings': await doSaveSettings(); break;
         case 'export': doExport(); return;

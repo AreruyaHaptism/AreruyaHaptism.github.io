@@ -26,6 +26,7 @@
     weights: { VYM: 0.32, SCHD: 0.28, QQQ: 0.15, SMH: 0.12, GLD: 0.13 },
     monthly: { user: 1250, spouse: 6250, day: 5 },
     spcxUsd: { user: 200, spouse: 1000 }, // SPCX 為月供以外的獨立定投，以美元金額計（舊欄位 spcx 為股數，已停用）
+    otherHoldings: ['QQQI', 'QYLD'],      // 既有持倉（不在月供與加倉範圍），只用於持倉盈虧統計
     recovery: { triggerPct: 0.95, weeks: 10, tranchePct: 0.10 },
     lockedLiquid: null,           // 若設定，資金池改用此固定流動資金基準
     apiKey: ''                    // Twelve Data 金鑰（只存在你的私有 Firestore 文件）
@@ -379,6 +380,51 @@
     return { state: r.state, derivedEvents: base.events, wed, plan: Object.assign({}, r.plan, { items, needCash, sellTotal }) };
   }
 
+  // ───────── 持倉與盈虧 ─────────
+  // 底倉 base[sym] = { shares, cost（每股成本價）, asOf:'YYYY-MM-DD' }，視為富途在 asOf 當天顯示的全部持倉。
+  // 之後新增的買入（月供、加倉、SPCX）才累加進來；asOf 當天及之前的記錄一律視為已含在底倉內。
+  // 買入若沒填成交價就無法換算股數：只計入「待定投入」，不計入市值與盈虧，並在畫面標示。
+  // 賣出（本金回收）按平均成本法減少成本與股數，已實現盈虧另外列示。
+  function holdingsSummary(base, buys, prices, opts) {
+    opts = opts || {};
+    const syms = opts.syms || Object.keys(base || {});
+    const rows = syms.map((sym) => {
+      const b = (base && base[sym]) || {};
+      const since = b.asOf || '0000-00-00';
+      let shares = num(b.shares), cost = num(b.shares) * num(b.cost), unpriced = 0, unpricedN = 0, realized = 0;
+      (buys || []).filter((e) => e.sym === sym && e.date > since).sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : (x.ts || 0) - (y.ts || 0))).forEach((e) => {
+        const sh = e.shares > 0 ? e.shares : (e.price > 0 ? e.amount / e.price : 0);
+        if (e.side === 'sell') {
+          if (!(sh > 0)) { unpricedN += 1; return; }            // 賣出沒填價格，無法換算，標示即可
+          const avg = shares > 0 ? cost / shares : 0;
+          const sold = Math.min(sh, shares);
+          realized += e.amount - avg * sold;
+          shares -= sold; cost -= avg * sold;
+        } else if (sh > 0) { shares += sh; cost += num(e.amount); }
+        else { unpriced += num(e.amount); unpricedN += 1; }
+      });
+      const price = prices && prices[sym] > 0 ? prices[sym] : null;
+      const value = price != null ? shares * price : null;
+      const pnl = value != null ? value - cost : null;
+      return {
+        sym, shares, cost, avgCost: shares > 0 ? cost / shares : null, price, value, pnl,
+        pnlPct: pnl != null && cost > 0 ? pnl / cost : null, unpriced, unpricedN, realized, hasBase: num(b.shares) > 0
+      };
+    });
+    const known = rows.filter((r) => r.value != null);
+    const totalCost = rows.reduce((s, r) => s + r.cost, 0);
+    const totalValue = known.reduce((s, r) => s + r.value, 0);
+    const costOfKnown = known.reduce((s, r) => s + r.cost, 0);
+    const pnl = known.reduce((s, r) => s + r.pnl, 0);
+    return {
+      rows, totalCost, totalValue, pnl,
+      pnlPct: costOfKnown > 0 ? pnl / costOfKnown : null,
+      realized: rows.reduce((s, r) => s + r.realized, 0),
+      unpriced: rows.reduce((s, r) => s + r.unpriced, 0),
+      missingPrice: rows.filter((r) => r.price == null && (r.shares > 0 || r.cost > 0)).map((r) => r.sym)
+    };
+  }
+
   // 月供：依目標權重拆分
   // 本人與配偶各算各的：本人要記錄，配偶只列出每月每檔金額。
   // 金額四捨五入到分，並把尾差補在權重最大的資產上，確保各檔加總剛好等於月供總額。
@@ -440,6 +486,6 @@
     ADD_ASSETS, MONTHLY_ASSETS, DEFAULT_SETTINGS,
     initialState, mergeSettings, drawdown, levelIndex, poolInfo,
     review, applyExecutions, monthlyPlan, rebalance,
-    deriveAssets, ledgerStats, guidance, weekKey, nextWednesday
+    deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary
   };
 });
