@@ -28,6 +28,22 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
     }
 
+    // 富途同步區：由本機同步程式用「專用同步賬號」寫入，你（網頁）只讀。
+    // 同步賬號只能寫這一個文件，碰不到帳本與設定；它被盜用的最壞情況是同步區資料被改，
+    // 而同步區的內容只會進「待確認」佇列，不會自動寫入你的帳本。
+    // 把 YOUR_SYNC_UID 換成 Firebase Console -> Authentication 裡同步賬號的使用者 UID。
+    function isSyncer(uid) {
+      return request.auth != null && request.auth.uid == 'YOUR_SYNC_UID' && uid == 'RVb2CFs7a1ORm417l0pZbN5KHpS2';
+    }
+    match /users/{uid}/futuSync/main {
+      allow read: if isOwner(uid) || isSyncer(uid);
+      allow create, update: if isSyncer(uid)
+        && request.resource.data.keys().hasOnly(['json', 'updatedAt'])
+        && request.resource.data.json is string && request.resource.data.json.size() < 200000
+        && request.resource.data.updatedAt is number;
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

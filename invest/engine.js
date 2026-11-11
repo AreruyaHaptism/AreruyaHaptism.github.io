@@ -482,6 +482,93 @@
     };
   }
 
+  // ───────── 富途同步（唯讀資料進網頁）─────────
+  // 同步區只進「待確認」佇列，絕不自動寫入帳本。處理結果記在使用者自己的文件 doc.futu.handled：
+  //   handled[dealId] = { action:'add'|'recovery'|'monthly'|'ignore', at: ms }
+
+  // 成交 -> 建議動作（只是預設，使用者可改）
+  //  - 只有追蹤代號才建議；賣出只在該資產有進行中的回收排程時建議為回收，否則建議忽略
+  //  - 月供資產在月供日前後 3 天內買入，優先視為月供；其餘加倉資產視為加倉
+  function suggestDeal(deal, settings, state, ledger) {
+    if (!deal.tracked) return { action: 'ignore', why: '不在追蹤範圍' };
+    const isAdd = ADD_ASSETS.indexOf(deal.sym) >= 0;
+    if (deal.side === 'sell') {
+      const a = isAdd && state.assets[deal.sym];
+      if (a && a.recovery && a.recovery.active) return { action: 'ledger', kind: 'recovery', why: '有進行中的本金回收排程' };
+      return { action: 'ignore', why: '沒有進行中的本金回收，賣出不入帳本' };
+    }
+    const day = Number(String(deal.date).slice(8, 10));
+    const monthlyDay = settings.monthly && settings.monthly.day;
+    const isMonthlyAsset = MONTHLY_ASSETS.indexOf(deal.sym) >= 0 || deal.sym === 'SPCX';
+    if (monthlyDay && isMonthlyAsset && Math.abs(day - monthlyDay) <= 3) return { action: 'monthly', why: '接近月供日（' + monthlyDay + ' 號）' };
+    if (isAdd) return { action: 'ledger', kind: 'add', why: '追蹤的加倉資產' };
+    return { action: 'monthly', why: '月供資產' };
+  }
+
+  // 待確認：未處理、追蹤中的成交，新的在前
+  function pendingDeals(sync, handled, opts) {
+    opts = opts || {};
+    const h = handled || {};
+    return ((sync && sync.deals) || [])
+      .filter((d) => !h[d.id] && (opts.includeUntracked || d.tracked))
+      .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
+  }
+
+  // 成交 -> 帳本草稿（level / base 由使用者在畫面上選）。id 由成交 id 決定，所以重複確認不會重複入帳。
+  function dealToLedger(deal, kind, extra) {
+    const e = {
+      id: 'f' + String(deal.id).replace(/[^A-Za-z0-9_]/g, '').slice(-40), ts: Date.now(), date: deal.date, sym: deal.sym, kind: kind,
+      amount: Math.round(deal.amount * 100) / 100, price: deal.price, shares: deal.shares, note: ('富途成交 ' + deal.dealId).slice(0, 100)
+    };
+    return Object.assign(e, extra || {});
+  }
+
+  // 派息：以「同代號、除息日不晚於派發日、尚未被富途配對」的最近一筆手填記錄配對；沒有就新增一筆（來源 futu）。
+  // 回傳 { dividends: 新陣列, matched, created, skipped, ambiguous }
+  function mergeFutuDividends(dividends, feed, holdingsAt) {
+    const out = (dividends || []).map((d) => Object.assign({}, d));
+    let matched = 0, created = 0, skipped = 0; const ambiguous = [];
+    (feed || []).forEach((f) => {
+      if (f.ambiguous || !f.sym || f.sym === '?') { ambiguous.push(f); return; }
+      if (out.some((d) => d.futuId === f.id)) { skipped += 1; return; }
+      const cands = out.filter((d) => d.sym === f.sym && !d.futuId && d.exDate <= f.paidDate).sort((a, b) => (a.exDate < b.exDate ? 1 : -1));
+      const hit = cands[0];
+      if (hit) {
+        hit.paidDate = f.paidDate; hit.netReceived = f.net; hit.grossReceived = f.gross; hit.futuId = f.id; hit.source = 'futu';
+        matched += 1;
+      } else {
+        // 沒有手填記錄：除息日未知，暫用派發日；每股派息由當時持股反推，持股未知則標記待人工
+        const sh = holdingsAt ? holdingsAt(f.sym, f.paidDate) : 0;
+        out.push({
+          id: 'fd_' + String(f.id).replace(/[^A-Za-z0-9_]/g, '').slice(-40), sym: f.sym, exDate: f.paidDate, perShare: sh > 0 ? f.gross / sh : 0,
+          source: 'futu', paidDate: f.paidDate, netReceived: f.net, grossReceived: f.gross, futuId: f.id, needsReview: !(sh > 0)
+        });
+        created += 1;
+      }
+    });
+    return { dividends: out, matched: matched, created: created, skipped: skipped, ambiguous: ambiguous };
+  }
+
+  // 對照：富途實際持倉 vs 網頁推算持倉（只看差異，不自動修正）。diff = 網頁 - 富途
+  function comparePositions(futuPositions, holdingsRows, tol) {
+    tol = tol == null ? 0.01 : tol;
+    const f = {}; (futuPositions || []).forEach((p) => { f[p.sym] = p; });
+    const syms = Array.from(new Set(Object.keys(f).concat((holdingsRows || []).filter((r) => r.shares > 0).map((r) => r.sym))));
+    return syms.sort().map((sym) => {
+      const mine = (holdingsRows || []).find((r) => r.sym === sym);
+      const web = mine ? mine.shares : 0, fu = f[sym] ? f[sym].shares : 0;
+      const diff = web - fu;
+      return { sym: sym, web: web, futu: fu, diff: diff, ok: Math.abs(diff) <= tol, futuCost: f[sym] ? f[sym].costPrice : null, webCost: mine ? mine.avgCost : null };
+    });
+  }
+
+  // 同步新鮮度：超過 maxHours 沒更新就視為過期，畫面要提醒
+  function syncAge(sync, nowMs, maxHours) {
+    if (!sync || !sync.syncedAt) return { state: 'never', hours: null };
+    const hours = (nowMs - sync.syncedAt) / 3600000;
+    return { state: hours > (maxHours || 26) ? 'stale' : 'fresh', hours: hours };
+  }
+
   // ───────── 派息 ─────────
   // 派息記錄 { id, sym, exDate:'YYYY-MM-DD', perShare, source:'manual'|'futu', paidDate?, netReceived? }。
   // 你只需要填除息日；paidDate（派發日）與 netReceived（實際入帳淨額）由日後富途同步帶入。
@@ -585,6 +672,7 @@
     ADD_ASSETS, MONTHLY_ASSETS, DEFAULT_SETTINGS,
     initialState, mergeSettings, drawdown, levelIndex, poolInfo, ruleSheet,
     review, applyExecutions, monthlyPlan, rebalance,
-    deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary, sharesBefore, dividendSummary
+    deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary, sharesBefore, dividendSummary,
+    suggestDeal, pendingDeals, dealToLedger, mergeFutuDividends, comparePositions, syncAge
   };
 });

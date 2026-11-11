@@ -12,7 +12,9 @@
   const IDLE_MS = 30 * 60 * 1000;
   const LOCAL_DOC = 'invest_local_doc_v2';
   const LOCAL_LEDGER = 'invest_local_ledger_v2';
+  const LOCAL_SYNC = 'invest_local_futusync_v1';
   const ADD = E.ADD_ASSETS, ALL = E.MONTHLY_ASSETS;
+  let futuSync = null, syncErr = '';
   const LV = ['L1', 'L2', 'L3', 'L4'];
 
   const cfg = window.FIREBASE_CONFIG || {};
@@ -51,6 +53,11 @@
       if (mode === 'local') { localStorage.setItem(LOCAL_DOC, JSON.stringify(d)); return; }
       const m = fb.fs; await m.setDoc(m.doc(fb.db, 'users', user.uid, 'invest', 'main'), { json: JSON.stringify(d), updatedAt: Date.now() });
     },
+    async loadSync() {
+      if (mode === 'local') { const s = localStorage.getItem(LOCAL_SYNC); return s ? JSON.parse(s) : null; }
+      const m = fb.fs; const snap = await m.getDoc(m.doc(fb.db, 'users', user.uid, 'futuSync', 'main'));
+      return snap.exists() ? JSON.parse(snap.data().json) : null;
+    },
     async loadLedger() {
       let a;
       if (mode === 'local') a = JSON.parse(localStorage.getItem(LOCAL_LEDGER) || '[]');
@@ -75,7 +82,7 @@
       const a = st.assets[s]; a.counts = Object.assign({ L1: 0, L2: 0, L3: 0, L4: 0 }, a.counts); a.recoveryDone = a.recoveryDone || [];
     });
     const inp = Object.assign({ date: null, closes: {}, highs: {}, cash: null, boxx: null, avail: null }, d.inputs || {});
-    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, holdingsBase: d.holdingsBase || {}, dividends: d.dividends || [], divFrom: d.divFrom || today(), values: d.values || {} };
+    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, holdingsBase: d.holdingsBase || {}, dividends: d.dividends || [], divFrom: d.divFrom || today(), values: d.values || {}, futu: Object.assign({ handled: {} }, d.futu || {}) };
   }
   async function persist() { doc.state.asOf = doc.state.asOf || today(); await store.saveDoc(doc); }
   function rederive() { const r = E.deriveAssets(doc.settings, doc.state, ledger); doc.state = r.state; return r.events; }
@@ -105,7 +112,7 @@
   }
 
   // ───────── 畫面骨架 ─────────
-  const VIEWS = [['guide', '操作指引'], ['ledger', '帳本與統計'], ['rules', '規則總覽'], ['monthly', '月供'], ['positions', '持倉盈虧'], ['rebalance', '再平衡'], ['settings', '設定']];
+  const VIEWS = [['guide', '操作指引'], ['ledger', '帳本與統計'], ['futu', '富途同步'], ['rules', '規則總覽'], ['monthly', '月供'], ['positions', '持倉盈虧'], ['rebalance', '再平衡'], ['settings', '設定']];
 
   function render() {
     const el = $('invest-root'); if (!el) return;
@@ -114,7 +121,7 @@
     if (!doc) { el.innerHTML = '<div class="inv-card">' + banner(esc(msg ? msg.text : '無法載入資料'), 'err') + '<button class="inv-btn ghost" data-act="logout">登出</button></div>'; return; }
     const who = mode === 'cloud' ? esc(user.email) : '本機測試模式';
     let body = '';
-    try { body = ({ guide: vGuide, ledger: vLedger, rules: vRules, monthly: vMonthly, positions: vPositions, rebalance: vRebalance, settings: vSettings })[view](); }
+    try { body = ({ guide: vGuide, ledger: vLedger, rules: vRules, futu: vFutu, monthly: vMonthly, positions: vPositions, rebalance: vRebalance, settings: vSettings })[view](); }
     catch (e) { body = banner('畫面錯誤：' + esc(e.message), 'err'); }
     el.innerHTML =
       '<div class="inv-card"><div class="inv-head"><div><h1>月供投資計劃</h1><div class="inv-sub">資料截至 ' + esc(doc.state.asOf) + ' · ' + who + '</div></div>' +
@@ -447,6 +454,112 @@
     return derive + ladder + worst + trig + used + rec;
   }
 
+  // ───────── 富途同步頁 ─────────
+  function holdingsAt(sym, date) {
+    const hs = E.holdingsSummary(doc.holdingsBase || {}, buyFlow().filter((e) => e.date < date), priceMap(), { syms: [sym] });
+    return hs.rows[0] ? hs.rows[0].shares : 0;
+  }
+  function vFutu() {
+    const age = E.syncAge(futuSync, Date.now(), 26);
+    const handled = doc.futu.handled || {};
+    const pend = E.pendingDeals(futuSync, handled);
+    const stat = (l, v, c) => '<div class="inv-stat"><span>' + l + '</span><b class="' + (c || '') + '">' + v + '</b></div>';
+    const status = age.state === 'never' ? banner('還沒有同步資料。請先在你的電腦跑同步程式（見 futu-sync 資料夾的 README），第一次同步後這裡就會出現成交與派息。' + (syncErr ? '<br>' + esc(syncErr) : ''), syncErr ? 'err' : '')
+      : age.state === 'stale' ? banner('同步資料已經 ' + age.hours.toFixed(0) + ' 小時沒有更新，請檢查電腦與 OpenD 是否在運行。以下資料可能不是最新。', 'err')
+      : '<div class="inv-note">最後同步：' + esc(new Date(futuSync.syncedAt).toLocaleString('zh-TW')) + '（' + age.hours.toFixed(1) + ' 小時前）· 富途賬戶末四碼 ' + esc(futuSync.accountTail || '—') + '</div>';
+
+    // ① 待確認成交
+    const rows = pend.map((d) => {
+      const sg = E.suggestDeal(d, doc.settings, doc.state, ledger);
+      const isAdd = ADD.includes(d.sym);
+      const lvSel = '<select id="fd-lv-' + esc(d.id) + '">' + LV.map((l) => '<option value="' + l + '">' + l + '</option>').join('') + '</select>';
+      return '<tr><td>' + esc(d.date) + '<div class="inv-note">' + esc(d.time.slice(11)) + '</div></td><td><b>' + esc(d.sym) + '</b></td><td>' + (d.side === 'buy' ? '買入' : '賣出') + '</td>' +
+        '<td>' + d.shares + '</td><td>' + usd(d.price) + '</td><td>' + usd(d.amount) + '</td>' +
+        '<td><select id="fd-act-' + esc(d.id) + '">' +
+        (isAdd ? '<option value="add"' + (sg.action === 'ledger' && sg.kind === 'add' ? ' selected' : '') + '>記為加倉</option><option value="recovery"' + (sg.kind === 'recovery' ? ' selected' : '') + '>記為本金回收賣出</option>' : '') +
+        '<option value="monthly"' + (sg.action === 'monthly' ? ' selected' : '') + '>記為月供</option>' +
+        '<option value="ignore"' + (sg.action === 'ignore' ? ' selected' : '') + '>忽略（不入帳）</option></select>' +
+        (isAdd ? '<div class="inv-note">加倉的 Level：' + lvSel + '</div>' : '') +
+        '<div class="inv-note">建議理由：' + esc(sg.why || '') + '</div></td>' +
+        '<td><button class="inv-btn" data-act="dealConfirm" data-id="' + esc(d.id) + '">確認</button> <button class="inv-btn ghost" data-act="dealIgnore" data-id="' + esc(d.id) + '">忽略</button></td></tr>';
+    }).join('');
+    const pending = '<div class="inv-card"><h2>① 待確認的富途成交（' + pend.length + ' 筆）</h2>' +
+      (pend.length ? '<div class="inv-scroll"><table><tr><th>日期</th><th>代號</th><th>方向</th><th>股數</th><th>成交價</th><th>金額</th><th>怎麼記</th><th></th></tr>' + rows + '</table></div>'
+        : '<div class="inv-note">沒有待確認的成交。</div>') +
+      '<div class="inv-note">同步程式只讀取富途資料，不會替你記帳；每一筆都要在這裡確認才會寫入帳本（成交價與股數會一併帶入，持倉盈虧因此更準）。已確認或忽略的不會再出現，重複同步也不會重複入帳。</div></div>';
+
+    // ② 派息
+    const feed = (futuSync && futuSync.dividends) || [];
+    const newFeed = feed.filter((f) => !f.ambiguous && !(doc.dividends || []).some((d) => d.futuId === f.id));
+    const amb = feed.filter((f) => f.ambiguous);
+    const divCard = '<div class="inv-card"><h2>② 派息入帳</h2><div class="inv-grid">' +
+      stat('富途派息記錄', feed.length + ' 筆') + stat('尚未配對', newFeed.length + ' 筆') + stat('無法判斷代號', amb.length + ' 筆', amb.length ? 'neg' : '') + '</div>' +
+      (newFeed.length ? '<div class="inv-scroll mt12"><table><tr><th>派發日</th><th>代號</th><th>稅前</th><th>預扣稅</th><th>實收淨額</th></tr>' + newFeed.map((f) => '<tr><td>' + esc(f.paidDate) + '</td><td><b>' + esc(f.sym) + '</b></td><td>' + usd(f.gross) + '</td><td>' + usd(f.tax) + '</td><td><b>' + usd(f.net) + '</b></td></tr>').join('') + '</table></div>' +
+        '<button class="inv-btn alt mt12" data-act="divMerge">配對到派息記錄</button>' : '') +
+      (amb.length ? banner('有 ' + amb.length + ' 筆派息抓不到代號（富途備註格式不同），請到富途 App 核對後在「持倉盈虧」手動新增：' + amb.map((f) => esc(f.paidDate) + ' ' + usd(f.net) + '（' + esc((f.remarks || [''])[0]) + '）').join('；'), 'err') : '') +
+      '<div class="inv-note">配對規則：同代號、除息日不晚於派發日、尚未被富途配對的最近一筆手填記錄，會補上派發日與實收淨額，並標為「已入帳」；找不到手填記錄時會新增一筆（來源：富途）。每筆富途記錄只會配對一次。</div></div>';
+
+    // ③ 持倉對照
+    const hs = E.holdingsSummary(doc.holdingsBase || {}, buyFlow(), priceMap(), { syms: posSyms() });
+    const cmp = E.comparePositions((futuSync && futuSync.positions) || [], hs.rows);
+    const cmpCard = '<div class="inv-card"><h2>③ 持倉對照（網頁推算 vs 富途實際）</h2>' +
+      (cmp.length ? '<div class="inv-scroll"><table><tr><th>代號</th><th>網頁推算股數</th><th>富途實際股數</th><th>差異</th><th>富途成本價</th><th>網頁均價</th><th></th></tr>' +
+        cmp.map((c) => '<tr><td><b>' + esc(c.sym) + '</b></td><td>' + c.web.toFixed(4) + '</td><td>' + c.futu.toFixed(4) + '</td><td class="' + (c.ok ? 'muted' : 'neg') + '">' + (c.diff >= 0 ? '+' : '') + c.diff.toFixed(4) + '</td><td>' + (c.futuCost ? usd(c.futuCost) : '—') + '</td><td>' + (c.webCost ? usd(c.webCost) : '—') + '</td><td>' + (c.ok ? '<span class="tag funded">一致</span>' : '<span class="tag unfunded">不一致</span>') + '</td></tr>').join('') + '</table></div>'
+        : '<div class="inv-note">沒有可對照的持倉。</div>') +
+      '<div class="inv-note">只做對照，不會自動修改。不一致通常是：有成交還沒確認、底倉日期或股數不對、或持倉裡有未追蹤的買賣。</div></div>';
+
+    return '<div class="inv-card"><h2>富途同步（唯讀）</h2>' + status + '<button class="inv-btn ghost" data-act="syncReload">重新讀取</button>' +
+      '<div class="inv-note">這個頁面只讀取你電腦上的同步程式寫入雲端的資料，網頁本身不連接富途、也不能下單。</div></div>' + pending + divCard + cmpCard;
+  }
+
+  async function doDealConfirm(id) {
+    const d = ((futuSync && futuSync.deals) || []).find((x) => x.id === id); if (!d) throw new Error('找不到這筆成交，請重新讀取');
+    if ((doc.futu.handled || {})[id]) throw new Error('這筆成交已處理過');
+    const action = sv('fd-act-' + id);
+    if (action === 'ignore') return doDealIgnore(id);
+    if (action === 'add' || action === 'recovery') {
+      if (!ADD.includes(d.sym)) throw new Error(d.sym + ' 不在加倉資產內');
+      const a = doc.state.assets[d.sym];
+      let e;
+      if (action === 'add') {
+        if (d.side !== 'buy') throw new Error('賣出不能記為加倉');
+        const level = sv('fd-lv-' + id); if (!LV.includes(level)) throw new Error('請選擇 Level');
+        const info = E.poolInfo(doc.settings, doc.inputs.cash != null ? doc.inputs.cash : doc.state.cash, doc.inputs.boxx != null ? doc.inputs.boxx : doc.state.boxx);
+        const lv = info.levels.find((l) => l.id === level);
+        e = E.dealToLedger(d, 'add', { level, base: lv ? lv.weekly : undefined, round: a.roundId });
+        if (!(e.base > 0)) delete e.base;
+      } else {
+        if (d.side !== 'sell') throw new Error('買入不能記為本金回收');
+        if (!a.recovery || !a.recovery.active) throw new Error(d.sym + ' 目前沒有進行中的本金回收排程，無法記為回收賣出');
+        e = E.dealToLedger(d, 'recovery', { round: a.roundId, recoveryId: a.recovery.id });
+      }
+      if (ledger.some((x) => x.id === e.id)) throw new Error('帳本已有這筆成交');
+      await addLedger(e, d.sym + ' 成交已記入帳本');
+    } else if (action === 'monthly') {
+      if (d.side !== 'buy') throw new Error('賣出不能記為月供');
+      const key = d.date.slice(0, 7);
+      const cur = doc.monthlyDone[key] && typeof doc.monthlyDone[key] === 'object' ? doc.monthlyDone[key] : { date: d.date, total: 0, items: {} };
+      const it = cur.items[d.sym] || { amount: 0 };
+      // 同月同代號多筆成交：金額累加，成交價取加權平均（總金額 / 總股數）
+      const prevSh = it.price > 0 ? it.amount / it.price : 0, totSh = prevSh + d.shares;
+      it.amount = r2(it.amount + d.amount); it.price = totSh > 0 ? r2(it.amount / totSh) : d.price;
+      cur.items[d.sym] = it; cur.total = r2(Object.keys(cur.items).reduce((s, k) => s + cur.items[k].amount, 0)); cur.date = cur.date || d.date;
+      doc.monthlyDone[key] = cur;
+      doc.prices[d.sym] = { price: d.price, date: d.date };
+    } else throw new Error('請選擇處理方式');
+    doc.futu.handled[id] = { action, at: Date.now() };
+    await persist();
+    if (!msg) msg = { text: d.sym + ' 成交已處理', cls: 'ok' };
+  }
+  async function doDealIgnore(id) {
+    doc.futu.handled[id] = { action: 'ignore', at: Date.now() }; await persist(); msg = { text: '已忽略（不入帳）', cls: 'ok' };
+  }
+  async function doDivMerge() {
+    const r = E.mergeFutuDividends(doc.dividends, (futuSync && futuSync.dividends) || [], holdingsAt);
+    doc.dividends = r.dividends; await persist();
+    msg = { text: '派息配對完成：配對 ' + r.matched + ' 筆、新增 ' + r.created + ' 筆、略過 ' + r.skipped + ' 筆' + (r.ambiguous.length ? '、' + r.ambiguous.length + ' 筆需人工處理' : ''), cls: r.ambiguous.length ? '' : 'ok' };
+  }
+
   function vSettings() {
     const s = doc.settings, st = doc.state;
     const fld = (id, label, v, step) => '<div><label>' + label + '</label><input type="number" step="' + (step || 'any') + '" id="' + id + '" value="' + v + '"></div>';
@@ -647,6 +760,10 @@
         case 'delDiv': await doDelDiv(ds.id); break;
         case 'saveDivFrom': await doSaveDivFrom(); break;
         case 'rebalance': doRebalance(); break;
+        case 'syncReload': futuSync = await store.loadSync(); syncErr = ''; msg = { text: '已重新讀取同步資料', cls: 'ok' }; break;
+        case 'dealConfirm': await doDealConfirm(ds.id); break;
+        case 'dealIgnore': await doDealIgnore(ds.id); break;
+        case 'divMerge': await doDivMerge(); break;
         case 'saveSettings': await doSaveSettings(); break;
         case 'export': doExport(); return;
       }
@@ -664,6 +781,7 @@
       doc = normalize(d);
       if (!d) { await persist(); msg = { text: '首次使用：已建立初始資料（52 週高點為公開數據，帳戶餘額為 0）。請先到「設定」填入現金寶與 BOXX，再到「帳本與統計」補記以前的加倉。' }; }
       ledger = await store.loadLedger();
+      try { futuSync = await store.loadSync(); syncErr = ''; } catch (e) { futuSync = null; syncErr = e.code === 'permission-denied' ? '沒有權限讀取同步區（請確認 firestore.rules 已發布）' : e.message; }
       rederive(); computeGd();
     } catch (e) {
       doc = null; msg = { text: '讀取資料失敗：' + (e.code === 'permission-denied' ? '沒有權限（請確認 firestore.rules 已發布且包含你的 uid）' : e.message), cls: 'err' };
