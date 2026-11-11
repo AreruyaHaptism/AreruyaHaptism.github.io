@@ -105,7 +105,7 @@
   }
 
   // ───────── 畫面骨架 ─────────
-  const VIEWS = [['guide', '操作指引'], ['ledger', '帳本與統計'], ['monthly', '月供'], ['positions', '持倉盈虧'], ['rebalance', '再平衡'], ['settings', '設定']];
+  const VIEWS = [['guide', '操作指引'], ['ledger', '帳本與統計'], ['rules', '規則總覽'], ['monthly', '月供'], ['positions', '持倉盈虧'], ['rebalance', '再平衡'], ['settings', '設定']];
 
   function render() {
     const el = $('invest-root'); if (!el) return;
@@ -114,7 +114,7 @@
     if (!doc) { el.innerHTML = '<div class="inv-card">' + banner(esc(msg ? msg.text : '無法載入資料'), 'err') + '<button class="inv-btn ghost" data-act="logout">登出</button></div>'; return; }
     const who = mode === 'cloud' ? esc(user.email) : '本機測試模式';
     let body = '';
-    try { body = ({ guide: vGuide, ledger: vLedger, monthly: vMonthly, positions: vPositions, rebalance: vRebalance, settings: vSettings })[view](); }
+    try { body = ({ guide: vGuide, ledger: vLedger, rules: vRules, monthly: vMonthly, positions: vPositions, rebalance: vRebalance, settings: vSettings })[view](); }
     catch (e) { body = banner('畫面錯誤：' + esc(e.message), 'err'); }
     el.innerHTML =
       '<div class="inv-card"><div class="inv-head"><div><h1>月供投資計劃</h1><div class="inv-sub">資料截至 ' + esc(doc.state.asOf) + ' · ' + who + '</div></div>' +
@@ -392,6 +392,61 @@
   }
 
   // ───────── 設定 ─────────
+  // ───────── 規則總覽：逐層列出金額、次數、佔用資金，供對照原始設計 ─────────
+  function vRules() {
+    const s = doc.settings, st = doc.state, i = doc.inputs;
+    const cash = i.cash != null ? i.cash : st.cash, boxx = i.boxx != null ? i.boxx : st.boxx;
+    const highs = {}; ADD.forEach((k) => { highs[k] = st.assets[k].high52; });
+    const R = E.ruleSheet(s, cash, boxx, highs);
+    const stats = E.ledgerStats(s, st, ledger);
+    const pc = (n) => (n * 100).toFixed(1) + '%';
+    const lock = s.lockedLiquid > 0;
+
+    const derive = '<div class="inv-card"><h2>① 資金池怎麼來</h2><div class="inv-scroll"><table>' +
+      '<tr><th>項目</th><th>算法</th><th>金額</th></tr>' +
+      '<tr><td>總流動資金</td><td>' + (lock ? '固定基準（設定頁鎖定）' : '現金寶 ' + usd0(cash) + ' + BOXX ' + usd0(boxx)) + '</td><td><b>' + usd0(R.liquid) + '</b></td></tr>' +
+      '<tr><td>資金池</td><td>總流動資金 x ' + pc(R.utilization) + '</td><td><b>' + usd0(R.pool) + '</b></td></tr>' +
+      '<tr><td>保留不動</td><td>總流動資金 - 資金池（' + pc(1 - R.utilization) + '）</td><td>' + usd0(R.reserve) + '</td></tr>' +
+      '<tr><td>單一資產上限</td><td>資金池 x ' + pc(R.assetCapPct) + '</td><td><b>' + usd0(R.cap) + '</b></td></tr>' +
+      '</table></div><div class="inv-note">加倉只針對 ' + ADD.join('、') + ' 共 ' + R.nAssets + ' 個資產，每個資產各有自己的上限，彼此不共用。</div></div>';
+
+    const rows = R.levels.map((l) => '<tr><td><b>' + l.id + '</b></td>' +
+      '<td>回撤 ' + pc(l.upper) + (l.deeper != null ? ' ～ ' + pc(l.deeper) + '（不含）' : ' 以下') + '</td>' +
+      '<td>' + pc(l.sharePct) + '</td><td>' + usd0(l.total) + '</td><td>' + l.maxCount + ' 次</td>' +
+      '<td><b>' + usd0(l.weekly) + '</b></td><td><b>' + usd0(l.full) + '</b>' + (l.roundDiff ? '<div class="inv-note">與總額差 ' + (l.roundDiff > 0 ? '+' : '') + usd0(l.roundDiff) + '（四捨五入）</div>' : '') + '</td>' +
+      '<td>' + pc(l.pctOfCap) + '</td><td>' + pc(l.pctOfPool) + '</td><td>' + pc(l.pctOfLiquid) + '</td></tr>').join('');
+    const sumRow = '<tr><td><b>合計</b></td><td>走完全部 Level</td><td>' + pc(R.shareSum) + '</td><td></td><td>' + R.levels.reduce((a, l) => a + l.maxCount, 0) + ' 次</td><td></td>' +
+      '<td><b>' + usd0(R.ladder) + '</b></td><td><b>' + pc(R.ladderPctOfCap) + '</b></td><td>' + pc(R.ladder / (R.pool || 1)) + '</td><td>' + pc(R.ladder / (R.liquid || 1)) + '</td></tr>';
+    const ladder = '<div class="inv-card"><h2>② 每個 Level：金額、次數、佔用資金（每個資產）</h2><div class="inv-scroll"><table>' +
+      '<tr><th>Level</th><th>觸發回撤區間</th><th>佔上限比例</th><th>該層總額</th><th>次數上限</th><th>每次金額</th><th>實際佔用（每次 x 次數）</th><th>佔單一資產上限</th><th>佔資金池</th><th>佔總流動資金</th></tr>' +
+      rows + sumRow + '</table></div>' +
+      '<div class="inv-note">該層總額 = 單一資產上限 x 佔上限比例（先四捨五入）；每次金額 = 該層總額 / 次數上限（再四捨五入）。每次金額是固定的，同一層的每一次買入都相同，與月供比例無關。' +
+      (Math.abs(R.shareSum - 1) > 1e-9 ? '<br><b class="neg">注意：各層比例加起來是 ' + pc(R.shareSum) + '，不是 100%。</b>' : '') + '</div></div>';
+
+    const worst = '<div class="inv-card"><h2>③ 最壞情況佔用</h2><div class="inv-grid">' +
+      '<div class="inv-stat"><span>單一資產走完整個階梯</span><b>' + usd0(R.ladder) + '</b></div>' +
+      '<div class="inv-stat"><span>' + R.nAssets + ' 個資產同時走完</span><b>' + usd0(R.allAssetsFull) + '</b></div>' +
+      '<div class="inv-stat"><span>佔資金池</span><b>' + pc(R.allAssetsPctOfPool) + '</b></div>' +
+      '<div class="inv-stat"><span>佔總流動資金</span><b>' + pc(R.allAssetsPctOfLiquid) + '</b></div></div>' +
+      '<div class="inv-note">每個資產各有自己的上限，所以 ' + R.nAssets + ' 個資產理論上可以同時用滿；如果「同時走完」超過資金池，代表資金會先被先觸發的資產用掉，後面的資產可能買不到（指引頁會按「回撤深的優先」分配）。</div></div>';
+
+    const trig = '<div class="inv-card"><h2>④ 以目前 52 週高計算的觸發價</h2><div class="inv-scroll"><table><tr><th>資產</th><th>52 週高</th>' +
+      R.levels.map((l) => '<th>' + l.id + ' 觸發價（' + pc(l.upper) + '）</th>').join('') + '</tr>' +
+      ADD.map((k) => '<tr><td><b>' + k + '</b></td><td>' + usd(highs[k]) + '</td>' + R.triggers[k].map((x) => '<td>≤ ' + usd(x.price) + '</td>').join('') + '</tr>').join('') +
+      '</table></div><div class="inv-note">價格剛好等於邊界時，歸入較深的 Level。收盤價創新高後，次數和累計本金歸零，進入下一輪。</div></div>';
+
+    const used = '<div class="inv-card"><h2>⑤ 目前實際使用量（來自帳本）</h2><div class="inv-scroll"><table><tr><th>資產</th>' +
+      R.levels.map((l) => '<th>' + l.id + ' 已用 / 上限</th>').join('') + '<th>累計本金（淨額）</th><th>上限剩餘</th><th>已用上限</th></tr>' +
+      ADD.map((k) => { const x = stats[k]; const left = R.cap - x.cumulative; return '<tr><td><b>' + k + '</b><div class="inv-note">第 ' + x.roundId + ' 輪</div></td>' +
+        R.levels.map((l) => { const c = x.levels[l.id]; return '<td' + (c.count >= c.max ? ' class="neg"' : '') + '>' + c.count + ' / ' + c.max + '<div class="inv-note">' + usd0(c.amount) + ' / ' + usd0(l.full) + '</div></td>'; }).join('') +
+        '<td>' + usd0(x.cumulative) + '</td><td class="' + (left < 0 ? 'neg' : '') + '">' + usd0(left) + '</td><td>' + pc(R.cap > 0 ? x.cumulative / R.cap : 0) + '</td></tr>'; }).join('') +
+      '</table></div><div class="inv-note">次數用完的 Level 以紅字標示。累計本金是淨額（加倉總額減已回收），上限比的是這個淨額。</div></div>';
+
+    const rec = '<div class="inv-card"><h2>⑥ 本金回收規則</h2><div class="inv-note flush">收盤價回到 52 週高的 ' + pc(R.recovery.triggerPct) + ' 以上，且累計本金大於 0，啟動回收；分 ' + R.recovery.weeks + ' 週，每週賣出基數的 ' + pc(R.recovery.tranchePct) + '，從下個週三開始；賣出的錢立即釋放等額累計本金。賣出第一筆之前基數隨累計本金更新，之後鎖定。</div></div>';
+
+    return derive + ladder + worst + trig + used + rec;
+  }
+
   function vSettings() {
     const s = doc.settings, st = doc.state;
     const fld = (id, label, v, step) => '<div><label>' + label + '</label><input type="number" step="' + (step || 'any') + '" id="' + id + '" value="' + v + '"></div>';

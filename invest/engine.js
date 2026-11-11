@@ -99,6 +99,42 @@
     return { liquid, pool, reserve: liquid - pool, cap, levels };
   }
 
+  // 規則總覽：只由設定與流動資金算出，不依賴帳本。給網頁逐層列出「每次金額、次數、佔用資金」，
+  // 方便對照原始設計。數字全部來自 poolInfo，與指引頁同一套算法。
+  function ruleSheet(settings, cash, boxx, highs) {
+    const info = poolInfo(settings, cash, boxx);
+    const n = settings.levels.length;
+    const levels = info.levels.map((l, i) => {
+      const deeper = i + 1 < n ? settings.levels[i + 1].upper : null;
+      const full = l.weekly * l.maxCount;                       // 每次金額 x 次數上限（實際會花的錢）
+      return {
+        id: l.id, upper: l.upper, deeper, maxCount: l.maxCount, sharePct: settings.levels[i].sharePct,
+        total: l.total, weekly: l.weekly, full,
+        roundDiff: full - l.total,                              // 四捨五入造成的差額
+        pctOfCap: info.cap > 0 ? full / info.cap : 0,
+        pctOfPool: info.pool > 0 ? full / info.pool : 0,
+        pctOfLiquid: info.liquid > 0 ? full / info.liquid : 0
+      };
+    });
+    const ladder = levels.reduce((s, l) => s + l.full, 0);       // 一個資產走完整個階梯
+    const nAssets = ADD_ASSETS.length;
+    const triggers = {};
+    ADD_ASSETS.forEach((sym) => {
+      const h = highs && highs[sym];
+      if (h > 0) triggers[sym] = levels.map((l) => ({ id: l.id, price: h * (1 + l.upper) }));
+    });
+    return {
+      liquid: info.liquid, pool: info.pool, reserve: info.reserve, cap: info.cap,
+      utilization: settings.utilization, assetCapPct: settings.assetCapPct,
+      levels, ladder, ladderPctOfCap: info.cap > 0 ? ladder / info.cap : 0,
+      shareSum: settings.levels.reduce((s, l) => s + l.sharePct, 0),
+      nAssets, allAssetsFull: ladder * nAssets, allAssetsPctOfPool: info.pool > 0 ? ladder * nAssets / info.pool : 0,
+      allAssetsPctOfLiquid: info.liquid > 0 ? ladder * nAssets / info.liquid : 0,
+      triggers,
+      recovery: { triggerPct: settings.recovery.triggerPct, weeks: settings.recovery.weeks, tranchePct: settings.recovery.tranchePct }
+    };
+  }
+
   // 每週日檢視：回傳更新後狀態（尚未執行任何買賣）與下週三的計畫
   function review(settings, state, closes, opts) {
     opts = opts || {};
@@ -547,7 +583,7 @@
 
   return {
     ADD_ASSETS, MONTHLY_ASSETS, DEFAULT_SETTINGS,
-    initialState, mergeSettings, drawdown, levelIndex, poolInfo,
+    initialState, mergeSettings, drawdown, levelIndex, poolInfo, ruleSheet,
     review, applyExecutions, monthlyPlan, rebalance,
     deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary, sharesBefore, dividendSummary
   };

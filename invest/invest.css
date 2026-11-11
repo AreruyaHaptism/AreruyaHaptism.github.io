@@ -74,3 +74,4 @@ body.inv-page { margin: 0; background: #0A0C10; font-family: 'Microsoft YaHei', 
 #panel-invest .inv-stat b.pos { color: var(--gn-teal); }
 #panel-invest .inv-stat b.neg { color: #e74c3c; }
 #panel-invest .inv-stat b { word-break: break-word; }
+#panel-invest .inv-note.flush { margin-top: 0; }
