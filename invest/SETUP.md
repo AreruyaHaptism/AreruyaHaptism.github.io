@@ -47,6 +47,25 @@ Twelve Data 免費帳號即可。到「設定」頁填金鑰，金鑰只存在�
 - Firebase SDK 升級時需要手動重新下載到 `vendor/`（目前版本 11.0.2）。
 - 前端安全無法抵擋你自己電腦中毒。
 
+## 富途同步（第一期：唯讀）
+
+程式在你電腦上的 `futu-sync` 資料夾（不在這個公開倉庫裡）。網頁的「富途同步」頁只讀取它寫入雲端的資料。
+
+### 你需要手動做的事
+1. **建同步專用賬號**：Firebase Console -> Authentication -> 使用者 -> 新增使用者。
+   用一個**專用**電郵（不要用你登入網頁的那個）和一組新的強密碼。建好後複製它的「使用者 UID」。
+2. **更新規則**：打開 `firestore.rules`，把 `YOUR_SYNC_UID` 換成上一步的 UID，到 Firebase Console -> Firestore -> 規則 貼上並發布。
+   （這一步只放行同步賬號寫 `futuSync/main`，其他一切照舊拒絕。）
+3. **確認這個賬號沒有開放註冊**：Authentication -> Settings -> User actions，確認「Enable create (sign-up)」仍是關閉。
+4. **在電腦上安裝 OpenD** 並登入富途賬戶；在富途 App 或網頁確認 OpenAPI 免責聲明（沒確認會報錯）。
+   OpenD 只開本機：監聽位址保持 `127.0.0.1`，不要改成 `0.0.0.0`。
+5. 依 `futu-sync/README.md` 填 `config.json`，先跑 `python -m futu_sync check`，成功再跑 `once`。
+
+### 安全說明
+- 同步賬號只能寫一個文件，碰不到帳本與設定；密碼外洩的最壞情況是同步區資料被改，而同步區只進「待確認」佇列，每筆要你按確認才入帳。
+- 第一期程式沒有任何下單、改單、解鎖交易的呼叫，測試會掃描原始碼確認。
+- 不要把 `futu-sync/config.json` 或同步賬號密碼貼給任何人，包括貼給 AI。
+
 ## 檔案
 | 檔案 | 用途 |
 |---|---|
