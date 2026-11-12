@@ -82,7 +82,7 @@
       const a = st.assets[s]; a.counts = Object.assign({ L1: 0, L2: 0, L3: 0, L4: 0 }, a.counts); a.recoveryDone = a.recoveryDone || [];
     });
     const inp = Object.assign({ date: null, closes: {}, highs: {}, cash: null, boxx: null, avail: null }, d.inputs || {});
-    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, holdingsBase: d.holdingsBase || {}, dividends: d.dividends || [], divFrom: d.divFrom || today(), values: d.values || {}, futu: Object.assign({ handled: {} }, d.futu || {}) };
+    return { state: st, settings: E.mergeSettings(d.settings), inputs: inp, prices: d.prices || {}, monthlyDone: d.monthlyDone || {}, holdingsBase: d.holdingsBase || {}, dividends: d.dividends || [], divFrom: d.divFrom || today(), values: d.values || {}, futu: Object.assign({ handled: {}, fundMap: '' }, d.futu || {}) };
   }
   async function persist() { doc.state.asOf = doc.state.asOf || today(); await store.saveDoc(doc); }
   function rederive() { const r = E.deriveAssets(doc.settings, doc.state, ledger); doc.state = r.state; return r.events; }
@@ -500,6 +500,28 @@
       (amb.length ? banner('有 ' + amb.length + ' 筆派息抓不到代號（富途備註格式不同），請到富途 App 核對後在「持倉盈虧」手動新增：' + amb.map((f) => esc(f.paidDate) + ' ' + usd(f.net) + '（' + esc((f.remarks || [''])[0]) + '）').join('；'), 'err') : '') +
       '<div class="inv-note">配對規則：同代號、除息日不晚於派發日、尚未被富途配對的最近一筆手填記錄，會補上派發日與實收淨額，並標為「已入帳」；找不到手填記錄時會新增一筆（來源：富途）。每筆富途記錄只會配對一次。</div></div>';
 
+    // ④ 現金寶與 BOXX 結餘
+    const stNow = doc.state, inNow = doc.inputs;
+    const curCash = inNow.cash != null ? inNow.cash : stNow.cash, curBoxx = inNow.boxx != null ? inNow.boxx : stNow.boxx;
+    const fopts = E.fundOptions(futuSync && futuSync.funds);
+    const fkey = doc.futu.fundMap || '';
+    const plan = E.planFundApply(futuSync, fkey);
+    const fundCard = '<div class="inv-card"><h2>現金寶與 BOXX 結餘</h2>' +
+      (!(futuSync && futuSync.funds) ? banner('同步資料裡還沒有賬戶資金。請在電腦上更新 futu-sync 後執行一次 <code>python -m futu_sync once</code>，再按上面的「重新讀取」。', '')
+        : '<div class="inv-scroll"><table><tr><th>富途賬戶資金欄位</th><th>金額 (USD)</th></tr>' + fopts.map((o) => '<tr><td>' + esc(o.label) + '</td><td>' + usd(o.value) + '</td></tr>').join('') + '</table></div>' +
+          '<div class="inv-note">富途沒有說明哪個欄位是「現金寶」。請打開富途 App 看你的現金寶金額，對照上表選出相符的那一行；選好後之後每次同步都只需按一下套用。</div>' +
+          '<div class="inv-grid mt12"><div><label>哪個欄位是現金寶</label><select id="ff-key"><option value="">— 請選擇 —</option>' +
+          fopts.map((o) => '<option value="' + esc(o.key) + '"' + (o.key === fkey ? ' selected' : '') + '>' + esc(o.label) + '（' + usd(o.value) + '）</option>').join('') + '</select></div>' +
+          '<div class="inv-stat"><span>BOXX 市值（來自富途持倉）</span><b>' + (plan.boxxPos ? usd(plan.boxx) : '—') + '</b>' + (plan.boxxPos ? '<div class="inv-note">' + plan.boxxPos.shares + ' 股 · 成本價 ' + usd(plan.boxxPos.costPrice) + '</div>' : '') + '</div></div>' +
+          '<table class="mt12"><tr><th></th><th>網頁目前</th><th>富途同步</th></tr>' +
+          '<tr><td>現金寶</td><td>' + usd(curCash) + '</td><td>' + (plan.cash != null ? '<b>' + usd(plan.cash) + '</b>' : '—') + '</td></tr>' +
+          '<tr><td>BOXX</td><td>' + usd(curBoxx) + '</td><td><b>' + usd(plan.boxx) + '</b></td></tr></table>' +
+          (plan.issues.length ? banner(esc(plan.issues.join('；')), '') : '') +
+          '<label class="inv-check"><input type="checkbox" id="ff-pos" ' + ((doc.holdingsBase || {}).BOXX ? 'checked' : '') + '> 同時把 BOXX 持倉（股數、成本價、最新價）寫入「持倉盈虧」</label>' +
+          '<button class="inv-btn alt mt12" data-act="fundsApply">套用到操作指引、規則總覽與設定</button>' +
+          '<div class="inv-note">套用會更新：「操作指引」的現金寶與 BOXX 輸入、「設定」的帳戶餘額（規則總覽的資金池也隨之改變）。' + (doc.settings.lockedLiquid > 0 ? '<b>注意：你在設定裡鎖定了固定流動資金基準，資金池仍以鎖定值計算，不受這次套用影響。</b>' : '') + ' 不會自動套用，也不會動帳本。勾選持倉那一項時，會覆寫「持倉盈虧」裡 BOXX 的底倉與最新價。</div>') +
+      '</div>';
+
     // 修復：已經入帳、但其實是同一次買入被拆成多筆的記錄
     const split = E.mergeSplitLedger(ledger);
     const fixCard = split.groups ? '<div class="inv-card"><h2>發現重複記帳：同一次買入被記成多次</h2>' +
@@ -518,7 +540,7 @@
       '<div class="inv-note">只做對照，不會自動修改。不一致通常是：有成交還沒確認、底倉日期或股數不對、或持倉裡有未追蹤的買賣。</div></div>';
 
     return '<div class="inv-card"><h2>富途同步（唯讀）</h2>' + status + '<button class="inv-btn ghost" data-act="syncReload">重新讀取</button>' +
-      '<div class="inv-note">這個頁面只讀取你電腦上的同步程式寫入雲端的資料，網頁本身不連接富途、也不能下單。</div></div>' + fixCard + pending + divCard + cmpCard;
+      '<div class="inv-note">這個頁面只讀取你電腦上的同步程式寫入雲端的資料，網頁本身不連接富途、也不能下單。</div></div>' + fixCard + fundCard + pending + divCard + cmpCard;
   }
 
   async function doDealConfirm(id) {
@@ -564,6 +586,25 @@
     const d = E.pendingGroups(futuSync, doc.futu.handled || {}).find((x) => x.id === id);
     (d ? d.ids : [id]).forEach((x) => { doc.futu.handled[x] = { action: 'ignore', at: Date.now() }; });
     await persist(); msg = { text: '已忽略（不入帳）', cls: 'ok' };
+  }
+  async function doFundsApply() {
+    const key = sv('ff-key'); if (!key) throw new Error('請先選擇哪個欄位是現金寶');
+    const plan = E.planFundApply(futuSync, key);
+    if (plan.cash == null) throw new Error(plan.issues.join('；') || '所選欄位沒有數值');
+    const withPos = $('ff-pos') && $('ff-pos').checked;
+    if (withPos && !plan.boxxPos) throw new Error('富途持倉裡沒有 BOXX，無法寫入持倉盈虧（取消勾選只套用結餘）');
+    doc.futu.fundMap = key;
+    doc.state.cash = plan.cash; doc.state.boxx = plan.boxx;
+    doc.inputs.cash = plan.cash; doc.inputs.boxx = plan.boxx;
+    if (withPos) {
+      const s = doc.settings; s.otherHoldings = (s.otherHoldings || []).slice();
+      if (!s.otherHoldings.includes('BOXX') && !POS_BASE.includes('BOXX')) s.otherHoldings.push('BOXX');
+      const bp = plan.boxxPos;
+      doc.holdingsBase = Object.assign({}, doc.holdingsBase, { BOXX: { shares: bp.shares, cost: bp.costPrice, asOf: today() } });
+      if (bp.price > 0) doc.prices.BOXX = { price: Math.round(bp.price * 10000) / 10000, date: today() };   // 保留 4 位小數，讓 股數 x 價格 與富途市值對得上
+    }
+    rederive(); computeGd(); await persist();
+    msg = { text: '已套用：現金寶 ' + usd(plan.cash) + '、BOXX ' + usd(plan.boxx) + (withPos ? '，並更新持倉盈虧的 BOXX' : ''), cls: 'ok' };
   }
   async function doMergeSplit() {
     const r = E.mergeSplitLedger(ledger);
@@ -786,6 +827,7 @@
         case 'dealConfirm': await doDealConfirm(ds.id); break;
         case 'dealIgnore': await doDealIgnore(ds.id); break;
         case 'mergeSplit': await doMergeSplit(); break;
+        case 'fundsApply': await doFundsApply(); break;
         case 'divMerge': await doDivMerge(); break;
         case 'saveSettings': await doSaveSettings(); break;
         case 'export': doExport(); return;

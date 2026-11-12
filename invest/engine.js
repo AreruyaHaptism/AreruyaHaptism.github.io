@@ -491,6 +491,7 @@
   //  - 月供資產在月供日前後 3 天內買入，優先視為月供；其餘加倉資產視為加倉
   function suggestDeal(deal, settings, state, ledger) {
     if (!deal.tracked) return { action: 'ignore', why: '不在追蹤範圍' };
+    if (deal.sym === 'BOXX') return { action: 'ignore', why: 'BOXX 是現金等價物，結餘由「現金寶與 BOXX 結餘」用持倉市值同步，不記帳本' };
     const isAdd = ADD_ASSETS.indexOf(deal.sym) >= 0;
     if (deal.side === 'sell') {
       const a = isAdd && state.assets[deal.sym];
@@ -512,6 +513,50 @@
     return ((sync && sync.deals) || [])
       .filter((d) => !h[d.id] && (opts.includeUntracked || d.tracked))
       .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
+  }
+
+  // ───────── 現金寶 / BOXX 結餘 ─────────
+  // 富途賬戶資金欄位很多，文件沒說哪一個是「現金寶」，所以全部列出來讓使用者對照 App 選一個（或「現金 + 基金資產淨值」）。
+  // BOXX 是 ETF，結餘取自同步持倉的市值。這裡只算數字，是否套用到各分頁由使用者按鈕決定。
+  const FUND_LABELS = {
+    cash: '現金（賬戶總現金）', usCash: '美元現金', fundAssets: '基金資產淨值', securitiesAssets: '證券市值', bondAssets: '債券資產',
+    marketVal: '持倉總市值', totalAssets: '總資產淨值', avlWithdrawalCash: '可提現金', availableFunds: '可用資金', frozenCash: '凍結現金', pendingAsset: '在途資產'
+  };
+  const r2n = (n) => Math.round(n * 100) / 100;
+  function fundOptions(funds) {
+    const out = [];
+    Object.keys(FUND_LABELS).forEach((k) => {
+      if (funds && typeof funds[k] === 'number' && isFinite(funds[k])) out.push({ key: k, label: FUND_LABELS[k], value: funds[k] });
+    });
+    if (funds && typeof funds.cash === 'number' && typeof funds.fundAssets === 'number') {
+      out.push({ key: 'cash+fundAssets', label: '現金 + 基金資產淨值', value: funds.cash + funds.fundAssets });
+    }
+    return out;
+  }
+  function fundValue(funds, key) {
+    if (!funds || !key) return null;
+    const parts = String(key).split('+');
+    let s = 0;
+    for (const k of parts) { const v = funds[k]; if (!(typeof v === 'number' && isFinite(v))) return null; s += v; }
+    return s;
+  }
+  function boxxFromPositions(positions) {
+    const p = (positions || []).find((x) => x.sym === 'BOXX');
+    if (!p) return null;
+    const shares = num(p.shares), mv = num(p.marketVal);
+    return { shares, marketVal: mv, costPrice: num(p.costPrice), price: shares > 0 && mv > 0 ? mv / shares : null };
+  }
+  // 規劃要套用的數字。fundKey = 使用者選的現金寶欄位。回傳 { cash, boxx, boxxPos, issues }
+  function planFundApply(sync, fundKey) {
+    const issues = [];
+    const funds = sync && sync.funds;
+    let cash = null;
+    if (!funds) issues.push('同步資料裡沒有賬戶資金（請更新同步程式並再同步一次）');
+    else if (!fundKey) issues.push('還沒選擇哪個欄位是現金寶');
+    else { cash = fundValue(funds, fundKey); if (cash == null) issues.push('所選欄位在這次同步沒有數值'); }
+    const bp = boxxFromPositions(sync && sync.positions);
+    if (!bp) issues.push('富途持倉裡沒有 BOXX（BOXX 將視為 0）');
+    return { cash: cash == null ? null : r2n(cash), boxx: bp ? r2n(bp.marketVal) : 0, boxxPos: bp, issues };
   }
 
   // 富途會把「一次買入」拆成多筆成交（整手一筆、碎股一筆，或分批成交），但對策略來說那只是「一次」。
@@ -729,6 +774,7 @@
     initialState, mergeSettings, drawdown, levelIndex, poolInfo, ruleSheet,
     review, applyExecutions, monthlyPlan, rebalance,
     deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary, sharesBefore, dividendSummary,
+    FUND_LABELS, fundOptions, fundValue, boxxFromPositions, planFundApply,
     suggestDeal, pendingDeals, groupDeals, pendingGroups, mergeSplitLedger, dealToLedger, mergeFutuDividends, comparePositions, syncAge
   };
 });
