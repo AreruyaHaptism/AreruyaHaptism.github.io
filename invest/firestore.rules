@@ -33,7 +33,7 @@ service cloud.firestore {
     // 而同步區的內容只會進「待確認」佇列，不會自動寫入你的帳本。
     // 把 YOUR_SYNC_UID 換成 Firebase Console -> Authentication 裡同步賬號的使用者 UID。
     function isSyncer(uid) {
-      return request.auth != null && request.auth.uid == 'YOUR_SYNC_UID' && uid == 'RVb2CFs7a1ORm417l0pZbN5KHpS2';
+      return request.auth != null && request.auth.uid == '7CN6jfmqIdUxslVomDm5XCQd1Ox1' && uid == 'RVb2CFs7a1ORm417l0pZbN5KHpS2';
     }
     match /users/{uid}/futuSync/main {
       allow read: if isOwner(uid) || isSyncer(uid);

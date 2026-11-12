@@ -514,6 +514,62 @@
       .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
   }
 
+  // 富途會把「一次買入」拆成多筆成交（整手一筆、碎股一筆，或分批成交），但對策略來說那只是「一次」。
+  // 所以待確認佇列把「同日、同代號、同方向」的成交合併成一筆再讓使用者確認：
+  //   股數、金額相加，成交價 = 總金額 / 總股數（加權平均）；ids 記錄所有被合併的成交，確認時全部標為已處理。
+  // 合併後的 id 取排序後第一筆成交的 id；只有一筆時與原本完全相同（所以帳本草稿 id 不變）。
+  const r4 = (n) => Math.round(n * 10000) / 10000;
+  function groupDeals(deals) {
+    const m = new Map();
+    (deals || []).forEach((d) => {
+      const k = [d.sym, d.side, d.date].join('|');
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(d);
+    });
+    const out = [];
+    m.forEach((arr) => {
+      arr = arr.slice().sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : String(a.id) < String(b.id) ? -1 : 1));
+      if (arr.length === 1) { out.push(Object.assign({}, arr[0], { ids: [arr[0].id], count: 1, parts: [{ shares: arr[0].shares, price: arr[0].price }] })); return; }
+      const shares = Math.round(arr.reduce((s, d) => s + num(d.shares), 0) * 1e6) / 1e6;
+      const amount = arr.reduce((s, d) => s + num(d.amount, num(d.shares) * num(d.price)), 0);
+      out.push(Object.assign({}, arr[0], {
+        shares, amount: r4(amount), price: shares > 0 ? r4(amount / shares) : arr[0].price,
+        time: arr[arr.length - 1].time, ids: arr.map((d) => d.id), count: arr.length,
+        dealId: arr.map((d) => d.dealId).join('+'), parts: arr.map((d) => ({ shares: d.shares, price: d.price }))
+      }));
+    });
+    return out.sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
+  }
+  function pendingGroups(sync, handled, opts) { return groupDeals(pendingDeals(sync, handled, opts)); }
+
+  // 修復已經入帳的「同一次買入被拆成多筆」：把同日、同代號、同種類、同 Level、同輪次，且都來自富途成交（id 以 f 開頭）的記錄合併。
+  // 金額、股數相加，價格 = 總金額 / 總股數；base 取第一筆（同一次買入的每週基本金額本來就相同）。
+  // 回傳 { updates: [合併後的記錄], removeIds: [被併掉的 id], groups: n }。不修改傳入的帳本。
+  function mergeSplitLedger(ledger) {
+    const m = new Map();
+    (ledger || []).forEach((e) => {
+      if (!/^f/.test(String(e.id || '')) || !/^(富途成交|合併)/.test(String(e.note || ''))) return;   // 只動來自富途成交的記錄，手動新增的不碰
+      const k = [e.sym, e.kind, e.level || '', e.round || 1, e.date, e.recoveryId || ''].join('|');
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(e);
+    });
+    const updates = [], removeIds = [];
+    m.forEach((arr) => {
+      if (arr.length < 2) return;
+      arr = arr.slice().sort((a, b) => num(a.ts) - num(b.ts) || (a.id < b.id ? -1 : 1));
+      const first = arr[0];
+      const amount = arr.reduce((s, e) => s + num(e.amount), 0);
+      const sharesOf = (e) => (e.shares > 0 ? e.shares : (e.price > 0 ? e.amount / e.price : 0));
+      const allHaveShares = arr.every((e) => sharesOf(e) > 0);
+      const shares = Math.round(arr.reduce((s, e) => s + sharesOf(e), 0) * 1e6) / 1e6;
+      const e = Object.assign({}, first, { amount: Math.round(amount * 100) / 100, note: ('合併 ' + arr.length + ' 筆富途成交').slice(0, 100) });
+      if (allHaveShares && shares > 0) { e.shares = shares; e.price = r4(amount / shares); }
+      updates.push(e);
+      arr.slice(1).forEach((x) => removeIds.push(x.id));
+    });
+    return { updates, removeIds, groups: updates.length };
+  }
+
   // 成交 -> 帳本草稿（level / base 由使用者在畫面上選）。id 由成交 id 決定，所以重複確認不會重複入帳。
   function dealToLedger(deal, kind, extra) {
     const e = {
@@ -673,6 +729,6 @@
     initialState, mergeSettings, drawdown, levelIndex, poolInfo, ruleSheet,
     review, applyExecutions, monthlyPlan, rebalance,
     deriveAssets, ledgerStats, guidance, weekKey, nextWednesday, holdingsSummary, sharesBefore, dividendSummary,
-    suggestDeal, pendingDeals, dealToLedger, mergeFutuDividends, comparePositions, syncAge
+    suggestDeal, pendingDeals, groupDeals, pendingGroups, mergeSplitLedger, dealToLedger, mergeFutuDividends, comparePositions, syncAge
   };
 });

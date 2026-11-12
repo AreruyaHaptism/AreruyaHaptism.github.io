@@ -65,7 +65,7 @@
       return a.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : (x.ts || 0) - (y.ts || 0)));
     },
     async addEntry(e) {
-      if (mode === 'local') { const a = JSON.parse(localStorage.getItem(LOCAL_LEDGER) || '[]'); a.push(e); localStorage.setItem(LOCAL_LEDGER, JSON.stringify(a)); return; }
+      if (mode === 'local') { const a = JSON.parse(localStorage.getItem(LOCAL_LEDGER) || '[]').filter((x) => x.id !== e.id); a.push(e); localStorage.setItem(LOCAL_LEDGER, JSON.stringify(a)); return; }   // 同 id 覆寫，與雲端 setDoc 行為一致
       const m = fb.fs; await m.setDoc(m.doc(fb.db, 'users', user.uid, 'investLedger', e.id), e);
     },
     async removeEntry(id) {
@@ -462,7 +462,7 @@
   function vFutu() {
     const age = E.syncAge(futuSync, Date.now(), 26);
     const handled = doc.futu.handled || {};
-    const pend = E.pendingDeals(futuSync, handled);
+    const pend = E.pendingGroups(futuSync, handled);
     const stat = (l, v, c) => '<div class="inv-stat"><span>' + l + '</span><b class="' + (c || '') + '">' + v + '</b></div>';
     const status = age.state === 'never' ? banner('還沒有同步資料。請先在你的電腦跑同步程式（見 futu-sync 資料夾的 README），第一次同步後這裡就會出現成交與派息。' + (syncErr ? '<br>' + esc(syncErr) : ''), syncErr ? 'err' : '')
       : age.state === 'stale' ? banner('同步資料已經 ' + age.hours.toFixed(0) + ' 小時沒有更新，請檢查電腦與 OpenD 是否在運行。以下資料可能不是最新。', 'err')
@@ -474,7 +474,7 @@
       const isAdd = ADD.includes(d.sym);
       const lvSel = '<select id="fd-lv-' + esc(d.id) + '">' + LV.map((l) => '<option value="' + l + '">' + l + '</option>').join('') + '</select>';
       return '<tr><td>' + esc(d.date) + '<div class="inv-note">' + esc(d.time.slice(11)) + '</div></td><td><b>' + esc(d.sym) + '</b></td><td>' + (d.side === 'buy' ? '買入' : '賣出') + '</td>' +
-        '<td>' + d.shares + '</td><td>' + usd(d.price) + '</td><td>' + usd(d.amount) + '</td>' +
+        '<td>' + d.shares + (d.count > 1 ? '<div class="inv-note">合併 ' + d.count + ' 筆成交：' + d.parts.map((x) => esc(x.shares) + ' 股 @ ' + usd(x.price)).join('、') + '</div>' : '') + '</td><td>' + usd(d.price) + (d.count > 1 ? '<div class="inv-note">加權平均</div>' : '') + '</td><td>' + usd(d.amount) + '</td>' +
         '<td><select id="fd-act-' + esc(d.id) + '">' +
         (isAdd ? '<option value="add"' + (sg.action === 'ledger' && sg.kind === 'add' ? ' selected' : '') + '>記為加倉</option><option value="recovery"' + (sg.kind === 'recovery' ? ' selected' : '') + '>記為本金回收賣出</option>' : '') +
         '<option value="monthly"' + (sg.action === 'monthly' ? ' selected' : '') + '>記為月供</option>' +
@@ -486,6 +486,7 @@
     const pending = '<div class="inv-card"><h2>① 待確認的富途成交（' + pend.length + ' 筆）</h2>' +
       (pend.length ? '<div class="inv-scroll"><table><tr><th>日期</th><th>代號</th><th>方向</th><th>股數</th><th>成交價</th><th>金額</th><th>怎麼記</th><th></th></tr>' + rows + '</table></div>'
         : '<div class="inv-note">沒有待確認的成交。</div>') +
+      '<div class="inv-note">富途常把一次買入拆成多筆成交（例如整手一筆、碎股一筆）。這裡會把「同一天、同代號、同方向」的成交合併成一筆，只算一次加倉，成交價用加權平均。如果你同一天其實是分開買了兩次（例如不同 Level），請先在這裡確認一次，再到「帳本與統計」手動補記另一次。</div>' +
       '<div class="inv-note">同步程式只讀取富途資料，不會替你記帳；每一筆都要在這裡確認才會寫入帳本（成交價與股數會一併帶入，持倉盈虧因此更準）。已確認或忽略的不會再出現，重複同步也不會重複入帳。</div></div>';
 
     // ② 派息
@@ -499,6 +500,14 @@
       (amb.length ? banner('有 ' + amb.length + ' 筆派息抓不到代號（富途備註格式不同），請到富途 App 核對後在「持倉盈虧」手動新增：' + amb.map((f) => esc(f.paidDate) + ' ' + usd(f.net) + '（' + esc((f.remarks || [''])[0]) + '）').join('；'), 'err') : '') +
       '<div class="inv-note">配對規則：同代號、除息日不晚於派發日、尚未被富途配對的最近一筆手填記錄，會補上派發日與實收淨額，並標為「已入帳」；找不到手填記錄時會新增一筆（來源：富途）。每筆富途記錄只會配對一次。</div></div>';
 
+    // 修復：已經入帳、但其實是同一次買入被拆成多筆的記錄
+    const split = E.mergeSplitLedger(ledger);
+    const fixCard = split.groups ? '<div class="inv-card"><h2>發現重複記帳：同一次買入被記成多次</h2>' +
+      banner('帳本裡有 ' + split.groups + ' 組記錄，是富途把同一次買入拆成多筆成交、各自確認造成的，所以 Level 次數被多算了。' +
+        split.updates.map((e) => esc(e.date) + ' ' + esc(e.sym) + ' ' + esc(e.level || '') + '：合併後 ' + usd(e.amount) + (e.shares ? '（' + esc(e.shares) + ' 股，均價 ' + usd(e.price) + '）' : '')).join('；'), 'err') +
+      '<button class="inv-btn alt" data-act="mergeSplit">合併這些記錄（只合併來自富途、同日同代號同 Level 的）</button>' +
+      '<div class="inv-note">合併後保留最早那筆、金額與股數相加、價格取加權平均，其餘重複的刪除，次數與累計本金會自動重算。只動來自富途成交的記錄，你手動新增的不會被碰。</div></div>' : '';
+
     // ③ 持倉對照
     const hs = E.holdingsSummary(doc.holdingsBase || {}, buyFlow(), priceMap(), { syms: posSyms() });
     const cmp = E.comparePositions((futuSync && futuSync.positions) || [], hs.rows);
@@ -509,12 +518,12 @@
       '<div class="inv-note">只做對照，不會自動修改。不一致通常是：有成交還沒確認、底倉日期或股數不對、或持倉裡有未追蹤的買賣。</div></div>';
 
     return '<div class="inv-card"><h2>富途同步（唯讀）</h2>' + status + '<button class="inv-btn ghost" data-act="syncReload">重新讀取</button>' +
-      '<div class="inv-note">這個頁面只讀取你電腦上的同步程式寫入雲端的資料，網頁本身不連接富途、也不能下單。</div></div>' + pending + divCard + cmpCard;
+      '<div class="inv-note">這個頁面只讀取你電腦上的同步程式寫入雲端的資料，網頁本身不連接富途、也不能下單。</div></div>' + fixCard + pending + divCard + cmpCard;
   }
 
   async function doDealConfirm(id) {
-    const d = ((futuSync && futuSync.deals) || []).find((x) => x.id === id); if (!d) throw new Error('找不到這筆成交，請重新讀取');
-    if ((doc.futu.handled || {})[id]) throw new Error('這筆成交已處理過');
+    const d = E.pendingGroups(futuSync, doc.futu.handled || {}).find((x) => x.id === id); if (!d) throw new Error('找不到這筆成交（可能已處理），請重新讀取');
+    if (d.ids.some((x) => (doc.futu.handled || {})[x])) throw new Error('這筆成交已處理過');
     const action = sv('fd-act-' + id);
     if (action === 'ignore') return doDealIgnore(id);
     if (action === 'add' || action === 'recovery') {
@@ -547,12 +556,25 @@
       doc.monthlyDone[key] = cur;
       doc.prices[d.sym] = { price: d.price, date: d.date };
     } else throw new Error('請選擇處理方式');
-    doc.futu.handled[id] = { action, at: Date.now() };
+    d.ids.forEach((x) => { doc.futu.handled[x] = { action, at: Date.now() }; });
     await persist();
     if (!msg) msg = { text: d.sym + ' 成交已處理', cls: 'ok' };
   }
   async function doDealIgnore(id) {
-    doc.futu.handled[id] = { action: 'ignore', at: Date.now() }; await persist(); msg = { text: '已忽略（不入帳）', cls: 'ok' };
+    const d = E.pendingGroups(futuSync, doc.futu.handled || {}).find((x) => x.id === id);
+    (d ? d.ids : [id]).forEach((x) => { doc.futu.handled[x] = { action: 'ignore', at: Date.now() }; });
+    await persist(); msg = { text: '已忽略（不入帳）', cls: 'ok' };
+  }
+  async function doMergeSplit() {
+    const r = E.mergeSplitLedger(ledger);
+    if (!r.groups) { msg = { text: '沒有需要合併的記錄', cls: 'ok' }; return; }
+    if (!confirm('合併 ' + r.groups + ' 組重複記錄（刪除 ' + r.removeIds.length + ' 筆多餘的）？次數與累計本金會自動重算。')) return;
+    for (const e of r.updates) { await store.addEntry(e); }            // 同 id 覆寫保留的那一筆
+    for (const id of r.removeIds) { await store.removeEntry(id); }
+    const rm = new Set(r.removeIds), up = new Map(r.updates.map((e) => [e.id, e]));
+    ledger = ledger.filter((e) => !rm.has(e.id)).map((e) => up.get(e.id) || e);
+    rederive(); await persist(); computeGd();
+    msg = { text: '已合併 ' + r.groups + ' 組、刪除 ' + r.removeIds.length + ' 筆重複記錄，次數已重算', cls: 'ok' };
   }
   async function doDivMerge() {
     const r = E.mergeFutuDividends(doc.dividends, (futuSync && futuSync.dividends) || [], holdingsAt);
@@ -763,6 +785,7 @@
         case 'syncReload': futuSync = await store.loadSync(); syncErr = ''; msg = { text: '已重新讀取同步資料', cls: 'ok' }; break;
         case 'dealConfirm': await doDealConfirm(ds.id); break;
         case 'dealIgnore': await doDealIgnore(ds.id); break;
+        case 'mergeSplit': await doMergeSplit(); break;
         case 'divMerge': await doDivMerge(); break;
         case 'saveSettings': await doSaveSettings(); break;
         case 'export': doExport(); return;
